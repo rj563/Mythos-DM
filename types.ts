@@ -9,6 +9,7 @@ export interface Stats {
 }
 
 export interface Character {
+  id: string;
   name: string;
   race: string;
   class: string;
@@ -19,18 +20,23 @@ export interface Character {
   stats: Stats;
   inventory: string[];
   notes: string;
+  color: string;
 }
 
 export interface Message {
   role: 'user' | 'model';
   text: string;
+  senderId?: string;
+  senderName?: string;
   timestamp: number;
 }
 
 export interface GameState {
-  character: Character;
+  party: Character[];
+  activeCharacterId: string;
   history: Message[];
   isStarted: boolean;
+  sessionId?: string; // Unique room code for Gun.js
 }
 
 export interface DiceRoll {
@@ -38,4 +44,5 @@ export interface DiceRoll {
   result: number;
   bonus: number;
   total: number;
+  characterId: string;
 }

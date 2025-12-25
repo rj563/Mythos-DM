@@ -12,7 +12,11 @@ export class GeminiDMService {
   }
 
   public async startAdventure(history: Message[]): Promise<string> {
-    const formattedHistory = history.map(msg => ({
+    // Re-initialize AI client to ensure freshest API Key if it changed
+    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+
+    // Format history for the Gemini API
+    const historyParam = history.map(msg => ({
       role: msg.role,
       parts: [{ text: msg.text }]
     }));
@@ -24,18 +28,19 @@ export class GeminiDMService {
         temperature: 0.8,
         topP: 0.95,
       },
-      // Note: In some SDK versions history is passed differently, 
-      // but usually provided at creation or through consecutive sends.
+      history: historyParam,
     });
 
-    // If there's existing history, we'd need to rebuild the state. 
-    // For simplicity in this demo, we'll start fresh or simulate.
-    const initialPrompt = history.length === 0 
-      ? "Greetings, Dungeon Master. I am ready to begin my adventure. Please introduce yourself and set the starting scene."
-      : "Continuing from our last session: " + history[history.length - 1].text;
-
-    const response = await this.chatSession.sendMessage({ message: initialPrompt });
-    return response.text || "The DM remains silent...";
+    if (history.length === 0) {
+      const initialPrompt = "Greetings, Dungeon Master. I am ready to begin my adventure. Please introduce yourself and set the starting scene.";
+      const response = await this.chatSession.sendMessage({ message: initialPrompt });
+      return response.text || "The DM remains silent...";
+    } else {
+      // If history exists, we don't necessarily need to send a new message immediately, 
+      // but we might want to ask the DM to recap or simply acknowledge.
+      // For this app, we'll just return a confirmation that the chronicle is restored.
+      return "*(The chronicle glows with familiar magic as the story resumes...)*";
+    }
   }
 
   public async sendMessage(text: string): Promise<string> {
