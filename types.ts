@@ -31,12 +31,16 @@ export interface Message {
   timestamp: number;
 }
 
+export type SessionMode = 'solo' | 'online';
+
 export interface GameState {
   party: Character[];
   activeCharacterId: string;
   history: Message[];
   isStarted: boolean;
-  sessionId?: string; // Unique room code for Gun.js
+  sessionId?: string;
+  sessionMode?: SessionMode;
+  totalTokensUsed: number;
 }
 
 export interface DiceRoll {

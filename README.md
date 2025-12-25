@@ -1,20 +1,73 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# ⚔️ Mythos DM: D&D 5e Adventure Companion
 
-This contains everything you need to run your app locally.
+Mythos DM is an immersive, AI-powered Dungeon Master designed for Dungeons & Dragons 5th Edition. It leverages the **Gemini 3 Pro** engine to weave epic narratives, manage party stats, and facilitate real-time multiplayer sagas.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1V3gwArrLitp_EN6z6wqddnH6DRoAUull
+## 🌟 Features
 
-## Run Locally
+*   **AI Dungeon Master**: A specialized Gemini-driven DM that understands 5e rules, tracks party state, and adapts to player choices.
+*   **The Gate of Choice**: Play as a **Lone Hero** (local-only) or form a **Fellowship** (real-time multiplayer).
+*   **Live Saga Sync**: Decentralized real-time synchronization via **Gun.js**. No central database required—just share a room code.
+*   **The Armory of Chance**: Integrated 3D-logic dice roller with automatic modifier calculation.
+*   **Saga Budget**: Real-time token tracking to monitor your adventure's "energy" (credits).
 
-**Prerequisites:**  Node.js
+---
 
+## 🚀 Installation & Setup
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Follow these steps to manifest the app on your local machine.
+
+### 1. Prerequisites
+*   [Node.js](https://nodejs.org/) (v18 or higher recommended)
+*   An API Key from [Google AI Studio](https://aistudio.google.com/)
+
+### 2. Clone the Repository
+```bash
+git clone https://github.com/yourusername/mythos-dm.git
+cd mythos-dm
+```
+
+### 3. Install Dependencies
+```bash
+npm install
+```
+
+### 4. Configure Environment Variables
+Create a `.env` file in the root directory and add your Gemini API Key:
+```env
+API_KEY=your_gemini_api_key_here
+```
+
+### 5. Launch the App
+```bash
+npm run dev
+```
+The application will be available at `http://localhost:5173`.
+
+---
+
+## 🤝 Multiplayer (The Fellowship)
+
+Mythos DM uses **Gun.js**, a decentralized graph database, to sync game states between players without a middle-man server.
+
+1.  **Host**: Select "The Fellowship" -> "Host Session". Copy the generated **Saga Code** (e.g., `DRAGON-452`).
+2.  **Join**: Other players select "The Fellowship" -> "Join the Party" and enter the code.
+3.  **Sync**: All character sheet updates, dice rolls, and chat messages will synchronize across all connected peers instantly.
+
+---
+
+## 🛠️ Technical Stack
+
+*   **Engine**: Google Gemini 3 Pro
+*   **Frontend**: React + TypeScript
+*   **Styling**: Tailwind CSS
+*   **Sync**: Gun.js (Decentralized P2P)
+*   **Icons**: Lucide React
+*   **Deployment**: Optimized for Vercel, Netlify, or GitHub Pages.
+
+---
+
+## 📜 License
+This project is open-source. Please credit the original creator when branching or hosting public versions.
+
+*Happy adventuring! May your crits be many and your fumbles be legendary.*
