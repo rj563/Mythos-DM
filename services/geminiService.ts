@@ -4,22 +4,22 @@ import { DM_SYSTEM_INSTRUCTION } from "../constants";
 import { Message } from "../types";
 
 export class GeminiDMService {
-  private ai: GoogleGenAI;
   private chatSession: Chat | null = null;
 
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  private getClient(): GoogleGenAI {
+    // Creating a fresh instance to ensure the latest API key from the environment/dialog is used
+    return new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   }
 
   public async startAdventure(history: Message[]): Promise<{ text: string, tokens?: number }> {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    const ai = this.getClient();
 
     const historyParam = history.map(msg => ({
       role: msg.role,
       parts: [{ text: msg.text }]
     }));
 
-    this.chatSession = this.ai.chats.create({
+    this.chatSession = ai.chats.create({
       model: 'gemini-3-pro-preview',
       config: {
         systemInstruction: DM_SYSTEM_INSTRUCTION,
@@ -47,19 +47,29 @@ export class GeminiDMService {
     onComplete?: (totalTokens: number) => void
   ): Promise<void> {
     if (!this.chatSession) {
+      // Re-initialize if session was lost but history exists (simplified for demo)
       throw new Error("Adventure not started");
     }
-    const result = await this.chatSession.sendMessageStream({ message: text });
-    let finalResponse: GenerateContentResponse | null = null;
-    
-    for await (const chunk of result) {
-      const c = chunk as GenerateContentResponse;
-      onChunk(c.text || "");
-      finalResponse = c; // The last chunk often contains final metadata in some SDK versions, or we track the sequence
-    }
 
-    if (onComplete && finalResponse?.usageMetadata?.totalTokenCount) {
-      onComplete(finalResponse.usageMetadata.totalTokenCount);
+    try {
+      const result = await this.chatSession.sendMessageStream({ message: text });
+      let finalResponse: GenerateContentResponse | null = null;
+      
+      for await (const chunk of result) {
+        const c = chunk as GenerateContentResponse;
+        onChunk(c.text || "");
+        finalResponse = c;
+      }
+
+      if (onComplete && finalResponse?.usageMetadata?.totalTokenCount) {
+        onComplete(finalResponse.usageMetadata.totalTokenCount);
+      }
+    } catch (error: any) {
+      // If the error suggests the key is invalid or not found, we trigger a re-selection flow in the UI
+      if (error.message?.includes("Requested entity was not found")) {
+        throw new Error("API_KEY_EXPIRED");
+      }
+      throw error;
     }
   }
 }
