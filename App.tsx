@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, GameState as GameStateType, Message, Character, DiceRoll, SessionMode, GeminiModelId, AppPhase, PlayerStatus, SavedSaga, LevelUpChoice } from './types';
-import { generateRoomCode, PREMADE_HEROES, CHARACTER_COLORS, DND_RACES } from './constants';
+import { generateRoomCode, PREMADE_HEROES, CHARACTER_COLORS, DND_RACES, RACE_DETAILS } from './constants';
 import { dmService, ClassSuggestion } from './services/geminiService';
 import ChatInterface from './components/ChatInterface';
 import CharacterSheet from './components/CharacterSheet';
-import { Sword, AlertCircle, Plus, Users, Share2, Globe, User, Users2, Flame, Tent, Battery, Key, ShieldCheck, Zap, Brain, Sparkles, Check, X, ShieldAlert, ChevronRight, RefreshCw, Wand2, Shield, Scroll, Loader2, Heart, Briefcase, Wand, Save, BookMarked, Download, Upload, History, Trash2, Layout, BookOpen, Crown, Menu, LogOut, Settings, ArrowLeft } from 'lucide-react';
+import { Sword, AlertCircle, Plus, Users, Share2, Globe, User, Users2, Flame, Tent, Battery, Key, ShieldCheck, Zap, Brain, Sparkles, Check, X, ShieldAlert, ChevronRight, RefreshCw, Wand2, Shield, Scroll, Loader2, Heart, Briefcase, Wand, Save, BookMarked, Download, Upload, History, Trash2, Layout, BookOpen, Crown, Menu, LogOut, Settings, ArrowLeft, Search } from 'lucide-react';
 import Gun from 'gun';
 
 const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
@@ -15,6 +15,27 @@ const MODEL_OPTIONS: { id: GeminiModelId, name: string, icon: any, desc: string,
   { id: 'gemini-3-flash-preview', name: 'The Swift Rogue', icon: Zap, desc: 'Balanced and fast. Ideal for storytelling.', sub: 'Model: Gemini 3 Flash (Balanced)', color: 'sky' },
   { id: 'gemini-flash-lite-latest', name: 'The Nimble Sprite', icon: Sparkles, desc: 'Ultra-efficient. Conserves saga energy.', sub: 'Model: Flash Lite (Lowest Cost)', color: 'emerald' }
 ];
+
+const FloatingTooltip = ({ title, meta, desc, stats, pos }: any) => (
+  <div 
+    className="fixed z-[100] pointer-events-none bg-slate-950/95 border border-amber-500/30 p-4 rounded-xl shadow-2xl w-64 animate-in fade-in duration-150 backdrop-blur-md"
+    style={{ top: pos.y + 16, left: pos.x + 16 }}
+  >
+    <h4 className="fantasy-font text-lg text-white mb-1">{title}</h4>
+    <p className="text-[10px] text-amber-500 font-bold uppercase mb-3 tracking-widest">{meta}</p>
+    {stats && (
+      <div className="grid grid-cols-3 gap-1 mb-3">
+         {Object.entries(stats).map(([k, v]) => (
+            <div key={k} className="bg-slate-900 p-1.5 rounded border border-slate-800 text-center">
+               <div className="text-[8px] text-slate-500 uppercase font-bold">{k}</div>
+               <div className="text-white font-bold text-xs">{v as number}</div>
+            </div>
+         ))}
+      </div>
+    )}
+    <p className="text-xs text-slate-400 italic leading-relaxed font-serif">{desc}</p>
+  </div>
+);
 
 const App: React.FC = () => {
   const myPlayerId = useRef(crypto.randomUUID());
@@ -52,6 +73,14 @@ const App: React.FC = () => {
   const [activeTabId, setActiveTabId] = useState<string>('');
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // Tooltip State
+  const [hoveredHero, setHoveredHero] = useState<any | null>(null);
+  const [hoveredRace, setHoveredRace] = useState<string | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const [adventureTone, setAdventureTone] = useState<'action' | 'mystery'>('action');
+  
   const isRemoteChange = useRef(false);
 
   // Character Forge State
@@ -65,6 +94,14 @@ const App: React.FC = () => {
     stats: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
     inventory: ["Explorer's Pack"], color: CHARACTER_COLORS[0]
   });
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   useEffect(() => {
     const checkKey = async () => {
@@ -87,7 +124,7 @@ const App: React.FC = () => {
     const recover = async () => {
       if (gameState.phase === 'ADVENTURE' && gameState.isStarted && !dmService.isActive()) {
         try {
-          await dmService.startAdventure(gameState.party, gameState.history, gameState.modelId);
+          await dmService.startAdventure(gameState.party, gameState.history, gameState.modelId, 'action'); // Tone handled during init
         } catch (e) {
           setError("Failed to reconnect to the Dungeon Master.");
         }
@@ -183,7 +220,7 @@ const App: React.FC = () => {
       const finalParty = gameState.party;
       const sessionId = gameState.sessionMode === 'online' ? (gameState.sessionId || generateRoomCode()) : undefined;
       
-      const { text, tokens } = await dmService.startAdventure(finalParty, gameState.history, gameState.modelId);
+      const { text, tokens } = await dmService.startAdventure(finalParty, gameState.history, gameState.modelId, adventureTone);
       
       setGameState(prev => ({
         ...prev, 
@@ -210,10 +247,8 @@ const App: React.FC = () => {
   };
 
   const handleLeaveToGateway = () => {
-    if (confirm("Are you sure you want to return to the Gateway? Current session state is preserved.")) {
-      setIsMenuOpen(false);
-      setGameState(prev => ({ ...prev, phase: 'MODE_SELECT', isStarted: false }));
-    }
+    // Force a complete page reload to reset all application state
+    window.location.reload();
   };
 
   const handleSendMessage = async (text: string, charId: string) => {
@@ -225,21 +260,40 @@ const App: React.FC = () => {
       let fullText = "";
       await dmService.streamMessage(enrichedText, (chunk) => { fullText += chunk; }, (tokens) => setGameState(prev => ({ ...prev, totalTokensUsed: tokens })));
       
-      const rollMatch = fullText.match(/{{ROLL:(\w+)}}/);
-      const levelUpMatch = fullText.includes('{{LEVEL_UP}}');
+      // Robust Regex for multi-line JSON with loose spacing. Matches {{UPDATE_SHEET: ... }} across newlines
+      const sheetUpdateRegex = /\{\{\s*UPDATE_SHEET\s*:([\s\S]+?)\}\}/g;
+      const sheetUpdates: any[] = [];
+      let match;
       
-      const sheetUpdateMatch = fullText.match(/{{UPDATE_SHEET:({.*?})}}/);
-      if (sheetUpdateMatch) {
+      while ((match = sheetUpdateRegex.exec(fullText)) !== null) {
         try {
-          const updates = JSON.parse(sheetUpdateMatch[1]);
-          setGameState(prev => ({
-            ...prev,
-            party: prev.party.map(c => c.id === updates.id ? { ...c, ...updates } : c)
-          }));
+          const jsonStr = match[1].trim();
+          const updates = JSON.parse(jsonStr);
+          sheetUpdates.push(updates);
         } catch (e) { console.error("Sheet update parse error", e); }
       }
 
-      const processedText = fullText.replace(/{{ROLL:\w+}}/, '').replace(/{{LEVEL_UP}}/, '').replace(/{{UPDATE_SHEET:.*?}}/, '').trim();
+      if (sheetUpdates.length > 0) {
+        setGameState(prev => {
+          let updatedParty = [...prev.party];
+          sheetUpdates.forEach(update => {
+            updatedParty = updatedParty.map(c => c.id === update.id ? { ...c, ...update } : c);
+          });
+          return { ...prev, party: updatedParty };
+        });
+      }
+
+      // Capture triggers before cleaning
+      const rollMatch = fullText.match(/\{\{\s*ROLL\s*:\s*([^}]+)\s*\}\}/i);
+      const levelUpMatch = fullText.match(/\{\{\s*LEVEL_UP\s*\}\}/);
+
+      // Clean text - Remove artifacts aggressively
+      // Ensure we consume the patterns completely, including newlines inside them
+      const processedText = fullText
+        .replace(/\{\{\s*ROLL\s*:[\s\S]*?\}\}/gi, '')
+        .replace(/\{\{\s*LEVEL_UP\s*\}\}/gi, '')
+        .replace(/\{\{\s*UPDATE_SHEET\s*:[\s\S]*?\}\}/gi, '')
+        .trim();
 
       setGameState(prev => ({ 
         ...prev, 
@@ -247,10 +301,11 @@ const App: React.FC = () => {
           role: 'model', 
           text: processedText, 
           timestamp: Date.now(),
-          suggestedRoll: rollMatch ? rollMatch[1] : undefined,
-          triggerLevelUp: levelUpMatch
+          suggestedRoll: rollMatch ? rollMatch[1].trim() : undefined,
+          triggerLevelUp: !!levelUpMatch,
+          hasSheetUpdate: sheetUpdates.length > 0
         }],
-        showLevelUp: levelUpMatch || prev.showLevelUp
+        showLevelUp: !!levelUpMatch || prev.showLevelUp
       }));
     } catch (err: any) { setError("DM connection lost."); } finally { setIsLoading(false); }
   };
@@ -415,7 +470,17 @@ const App: React.FC = () => {
 
       case 'CHAR_SELECT':
         return (
-          <div className="max-w-7xl w-full grid grid-cols-1 gap-12 animate-in fade-in duration-700 pt-24 pb-12">
+          <div className="max-w-7xl w-full grid grid-cols-1 gap-12 animate-in fade-in duration-700 pt-24 pb-12 relative">
+            {hoveredHero && (
+               <FloatingTooltip 
+                  title={hoveredHero.name} 
+                  meta={`${hoveredHero.race} • ${hoveredHero.class}`} 
+                  desc={hoveredHero.notes}
+                  stats={hoveredHero.stats}
+                  pos={mousePos}
+               />
+            )}
+            
             <div className="space-y-10">
               <div className="flex justify-between items-center">
                   <h2 className="fantasy-font text-6xl text-amber-500">Manifest Hero</h2>
@@ -425,7 +490,17 @@ const App: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {PREMADE_HEROES.map((hero, i) => (
-                  <button key={i} onClick={() => { const char = { ...hero, id: crypto.randomUUID(), ownerId: myPlayerId.current } as Character; setGameState(prev => ({ ...prev, party: [char], phase: 'LOBBY' })); }} className="w-full flex items-center gap-4 bg-slate-900 border border-slate-800 p-4 rounded-[24px] hover:border-amber-500 transition-all text-left group">
+                  <button 
+                     key={i} 
+                     onClick={() => { 
+                       const char = { ...hero, id: crypto.randomUUID(), ownerId: myPlayerId.current } as Character; 
+                       setForgeData(char); // Load into forge data for review
+                       setGameState(prev => ({ ...prev, phase: 'CHAR_REVIEW' })); 
+                     }} 
+                     onMouseEnter={() => setHoveredHero(hero)}
+                     onMouseLeave={() => setHoveredHero(null)}
+                     className="w-full flex items-center gap-4 bg-slate-900 border border-slate-800 p-4 rounded-[24px] hover:border-amber-500 transition-all text-left group"
+                  >
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg font-bold shadow-lg" style={{ backgroundColor: hero.color }}>{hero.name[0]}</div>
                     <div className="flex-1 min-w-0">
                       <h4 className="fantasy-font text-lg text-white truncate group-hover:text-amber-400 transition-colors">{hero.name}</h4>
@@ -435,7 +510,7 @@ const App: React.FC = () => {
                 ))}
               </div>
               <div className="flex justify-center pt-8">
-               <button onClick={() => setGameState(prev => ({ ...prev, phase: 'MODE_SELECT' }))} className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors uppercase font-bold text-xs tracking-widest"><ArrowLeft size={16}/> Back</button>
+               <button onClick={() => setGameState(prev => ({ ...prev, phase: 'MODEL_SELECT' }))} className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors uppercase font-bold text-xs tracking-widest"><ArrowLeft size={16}/> Back</button>
             </div>
             </div>
           </div>
@@ -443,7 +518,15 @@ const App: React.FC = () => {
 
       case 'CHAR_FORGE':
         return (
-          <div className="max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-[50px] p-16 shadow-2xl animate-in zoom-in duration-500 pt-16">
+          <div className="max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-[50px] p-16 shadow-2xl animate-in zoom-in duration-500 pt-16 relative">
+             {hoveredRace && RACE_DETAILS[hoveredRace] && (
+               <FloatingTooltip 
+                  title={hoveredRace}
+                  meta={RACE_DETAILS[hoveredRace].bonus}
+                  desc={RACE_DETAILS[hoveredRace].desc}
+                  pos={mousePos}
+               />
+             )}
             <div className="space-y-12">
                <div className="flex gap-2 mb-10">
                   {[0,1,2,3,4].map(i => <div key={i} className={`h-1 w-12 rounded-full ${i <= forgeStep ? 'bg-amber-500' : 'bg-slate-800'}`} />)}
@@ -479,7 +562,17 @@ const App: React.FC = () => {
                  <div className="space-y-6 animate-in fade-in slide-in-from-right-8">
                     <h2 className="fantasy-font text-5xl text-amber-500">Of what race?</h2>
                     <div className="grid grid-cols-3 gap-4">
-                      {DND_RACES.map(r => <button key={r} onClick={() => { setForgeData({...forgeData, race: r}); setForgeStep(3); }} className="py-4 bg-slate-950 border border-slate-800 hover:border-amber-500 text-white rounded-xl uppercase text-xs font-bold tracking-widest">{r}</button>)}
+                      {DND_RACES.map(r => (
+                        <button 
+                          key={r} 
+                          onClick={() => { setForgeData({...forgeData, race: r}); setForgeStep(3); }} 
+                          onMouseEnter={() => setHoveredRace(r)}
+                          onMouseLeave={() => setHoveredRace(null)}
+                          className="py-4 bg-slate-950 border border-slate-800 hover:border-amber-500 text-white rounded-xl uppercase text-xs font-bold tracking-widest"
+                        >
+                          {r}
+                        </button>
+                      ))}
                     </div>
                     <button onClick={() => setForgeStep(1)} className="text-slate-600 hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14}/> Back</button>
                  </div>
@@ -528,7 +621,10 @@ const App: React.FC = () => {
 
       case 'CHAR_REVIEW':
         return (
-          <div className="max-w-4xl w-full space-y-12 animate-in zoom-in py-12">
+          <div className="max-w-4xl w-full space-y-8 animate-in zoom-in py-8">
+            <div className="w-full flex justify-start">
+               <button onClick={() => setGameState(prev => ({ ...prev, phase: 'CHAR_SELECT' }))} className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors uppercase font-bold text-xs tracking-widest px-4 py-2 rounded-lg hover:bg-slate-800"><ArrowLeft size={16}/> Back to Selection</button>
+            </div>
             <h2 className="fantasy-font text-7xl text-amber-500 text-center">Chronicle Entry</h2>
             <div className="bg-slate-900 border border-slate-800 rounded-[50px] overflow-hidden shadow-2xl p-12">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -549,6 +645,27 @@ const App: React.FC = () => {
                      <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-3 flex items-center gap-2"><Sparkles size={12}/> Features & Spells</h4>
                      <p className="p-6 bg-slate-950 border border-slate-800 rounded-3xl text-sm text-slate-400 italic whitespace-pre-wrap">{forgeData.notes}</p>
                    </div>
+                   
+                   <div className="pt-6 border-t border-slate-800 space-y-4">
+                      <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Select Starting Tone</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button onClick={() => setAdventureTone('action')} className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${adventureTone === 'action' ? 'bg-amber-600/20 border-amber-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'}`}>
+                           <Sword size={20} className={adventureTone === 'action' ? 'text-amber-500' : 'text-slate-600'} />
+                           <div className="text-left">
+                              <div className="font-bold text-sm uppercase">Immediate Action</div>
+                              <div className="text-[10px] opacity-70">Combat, chases, danger start now.</div>
+                           </div>
+                        </button>
+                        <button onClick={() => setAdventureTone('mystery')} className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${adventureTone === 'mystery' ? 'bg-sky-600/20 border-sky-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'}`}>
+                           <Search size={20} className={adventureTone === 'mystery' ? 'text-sky-500' : 'text-slate-600'} />
+                           <div className="text-left">
+                              <div className="font-bold text-sm uppercase">Mystery & Search</div>
+                              <div className="text-[10px] opacity-70">Peaceful start. Explore & investigate.</div>
+                           </div>
+                        </button>
+                      </div>
+                   </div>
+
                    <button onClick={() => { const char = { ...forgeData, id: crypto.randomUUID(), ownerId: myPlayerId.current } as Character; setGameState(prev => ({ ...prev, party: [char], phase: 'LOBBY' })); }} className="w-full py-6 bg-amber-600 rounded-2xl text-white font-bold uppercase text-lg shadow-xl hover:bg-amber-500 transition-all">Embark on Quest</button>
                 </div>
               </div>

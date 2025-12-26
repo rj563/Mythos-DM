@@ -6,13 +6,14 @@ CORE RULES:
 3. CHARACTER SHEETS: You are the sole manager of character states. 
    - When a player takes damage, finds an item, or levels up, you MUST provide a hidden update tag in your message. 
    - Format: {{UPDATE_SHEET:{"id":"CHAR_ID","hp":10,"maxHp":15,"inventory":["Item A","Item B","Item C"],"notes":"Updated notes"}}}
+   - RULES: Do NOT wrap this tag in Markdown code blocks (like \`\`\`). Output it as raw text on its own line.
    - INVENTORY: When updating lists (like inventory), you must provide the COMPLETE new list.
    - HP RULES: When leveling up, NEVER use fixed values. Always calculate HP increase using the Class Hit Die (rolled or average) + CON modifier.
    - NPC AUTO-LEVEL: If the player characters level up, you MUST also immediately level up any NPC companions in the party to match the party's power level and provide {{UPDATE_SHEET}} tags for them.
    - Always tell the player "Character sheet updated" narratively.
-4. ROLL TRIGGERS: include {{ROLL:Type}} at the end of messages requiring a check.
+4. ROLL TRIGGERS: include {{ROLL:Type}} at the end of messages requiring a check. Do NOT wrap in Markdown.
 5. LEVELING: include {{LEVEL_UP}} when a milestone is reached.
-6. Use Markdown. ADDRESS PLAYERS BY CHARACTER NAMES.
+6. Use Markdown for Story Text Only. ADDRESS PLAYERS BY CHARACTER NAMES.
 7. Synthesize multi-player actions.
 8. Describe scenes vividly using all senses.
 
@@ -34,6 +35,25 @@ export const CHARACTER_COLORS = [
 ];
 
 export const DND_RACES = ["Human", "Elf", "Dwarf", "Halfling", "Dragonborn", "Gnome", "Half-Orc", "Tiefling", "Tabaxi", "Aasimar", "Genasi", "Changeling", "Warforged", "Goliath", "Tortle", "Loxodon"];
+
+export const RACE_DETAILS: Record<string, { desc: string, bonus: string }> = {
+  "Human": { desc: "Versatile and ambitious. Humans are the most adaptable and common race.", bonus: "+1 to All Stats" },
+  "Elf": { desc: "Magical people of otherworldly grace, living in the world but not entirely part of it.", bonus: "+2 Dex" },
+  "Dwarf": { desc: "Bold and hardy, known for their skill as warriors, miners, and workers of stone and metal.", bonus: "+2 Con" },
+  "Halfling": { desc: "The comforts of home are the goals of most halflings' lives: a place to settle in peace and quiet.", bonus: "+2 Dex" },
+  "Dragonborn": { desc: "Born of dragons, as their name proclaims, the dragonborn walk proudly through a world that greets them with fearful incomprehension.", bonus: "+2 Str, +1 Cha" },
+  "Gnome": { desc: "A constant hum of busy energy pervades where gnomes are present.", bonus: "+2 Int" },
+  "Half-Orc": { desc: "Half-orcs' grayish pigmentation, sloping foreheads, jutting jaws, prominent teeth, and towering builds make their orcish heritage plain for all to see.", bonus: "+2 Str, +1 Con" },
+  "Tiefling": { desc: "To be greeted with stares and whispers, to suffer violence and insult on the street, to see mistrust and fear in every eye: this is the lot of the tiefling.", bonus: "+2 Cha, +1 Int" },
+  "Tabaxi": { desc: "Hailing from a strange and distant land, wandering tabaxi are catlike humanoids driven by curiosity to collect interesting artifacts, gather tales and stories, and lay eyes on all the world's wonders.", bonus: "+2 Dex, +1 Cha" },
+  "Aasimar": { desc: "Aasimar are placed in the world to serve as guardians of law and good. Their patrons expect them to strike at evil, lead by example, and further the cause of justice.", bonus: "+2 Cha" },
+  "Genasi": { desc: "Genasi carry the power of the elemental planes of air, earth, fire, and water in their blood.", bonus: "+2 Con" },
+  "Changeling": { desc: "Changelings are subtle shapeshifters capable of disguising their appearance.", bonus: "+2 Cha" },
+  "Warforged": { desc: "Warforged are made from wood and metal, but they can feel pain and emotion.", bonus: "+2 Con, +1 to One Other" },
+  "Goliath": { desc: "Strong and reclusive, every day brings a new challenge to a goliath.", bonus: "+2 Str, +1 Con" },
+  "Tortle": { desc: "What many tortles lack in social graces, they make up for with kindness.", bonus: "+2 Str, +1 Wis" },
+  "Loxodon": { desc: "Loxodons are tireless, patient artisans with an unrivaled intuition about their craft.", bonus: "+2 Con, +1 Wis" }
+};
 
 export const generateRoomCode = () => {
   const words = ['DRAGON', 'QUEST', 'SWORD', 'MAGE', 'ROGUE', 'BARD', 'DUNGEON', 'REEL'];

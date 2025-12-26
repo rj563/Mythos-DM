@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, Character, SessionMode } from '../types';
-import { Send, Loader2, ScrollText, UserCircle, Wand2, ShieldCheck } from 'lucide-react';
+import { Send, Loader2, ScrollText, UserCircle, Wand2, ShieldCheck, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 interface Props {
@@ -118,9 +118,22 @@ const ChatInterface: React.FC<Props> = ({
                   <ReactMarkdown>{msg.text}</ReactMarkdown>
                 </div>
 
+                {msg.hasSheetUpdate && (
+                   <div className="mt-4 pt-4 border-t border-white/10 text-emerald-400 text-xs font-bold tracking-widest flex items-center gap-2 animate-pulse">
+                     <RefreshCw size={12}/> Character sheet updated
+                   </div>
+                )}
+
                 {msg.suggestedRoll && (
                   <div className="mt-6 pt-6 border-t border-white/10 flex flex-col gap-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Requirement:</p>
+                    <div className="flex flex-col gap-1 mb-2">
+                       <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">
+                         Game Event: {msg.suggestedRoll} Check
+                       </p>
+                       <p className="text-sm text-slate-300 italic">
+                         "Describe how your character attempts this action in the chat, then click below."
+                       </p>
+                    </div>
                     <button 
                       onClick={() => onRoll(msg.suggestedRoll!)}
                       className="group flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 px-6 py-4 rounded-2xl transition-all border border-white/5 active:scale-95"

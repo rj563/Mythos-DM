@@ -31,6 +31,7 @@ export interface Message {
   timestamp: number;
   suggestedRoll?: string;
   triggerLevelUp?: boolean;
+  hasSheetUpdate?: boolean;
 }
 
 export type SessionMode = 'solo' | 'online';

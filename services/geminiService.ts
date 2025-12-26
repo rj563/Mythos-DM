@@ -167,7 +167,7 @@ export class GeminiDMService {
     }
   }
 
-  public async startAdventure(party: Character[], history: Message[], modelId: GeminiModelId): Promise<{ text: string, tokens?: number }> {
+  public async startAdventure(party: Character[], history: Message[], modelId: GeminiModelId, tone: 'action' | 'mystery'): Promise<{ text: string, tokens?: number }> {
     const ai = this.getClient();
 
     const partyContext = party.map(char => {
@@ -180,12 +180,21 @@ Inventory: ${char.inventory.join(', ')}
 Features/Spells/Backstory: ${char.notes}`;
     }).join('\n\n---\n\n');
 
+    let startInstruction = "";
+    if (tone === 'action') {
+      startInstruction = "START THE ADVENTURE IN MEDIA RES. The party is already in immediate danger (combat, chase, or disaster). Skip pleasantries. Force them to act now.";
+    } else {
+      startInstruction = "Start the adventure in a PEACEFUL, safe environment (a tavern, a library, a quiet campfire, or a city festival). There are NO immediate threats. Describe the atmosphere and the surroundings vividly. Allow the players to roleplay, talk amongst themselves, or explore freely. Do not trigger combat or danger until the players actively search for it or initiate a risky action. Let them take the initiative.";
+    }
+
     const finalSystemInstruction = `${DM_SYSTEM_INSTRUCTION}
 
 CURRENT PARTY INFORMATION:
 ${partyContext}
 
-The players have completed character creation. Begin the adventure immediately. Use metric units.`;
+The players have completed character creation. Begin the adventure immediately.
+${startInstruction}
+Use metric units.`;
 
     const historyParam = history.map(msg => ({
       role: msg.role,
@@ -203,7 +212,7 @@ The players have completed character creation. Begin the adventure immediately. 
     });
 
     if (history.length === 0) {
-      const initialPrompt = "Greetings, Dungeon Master. Our party is assembled and our character sheets are complete. We are ready to begin our journey. Please introduce yourself and set the starting scene for us.";
+      const initialPrompt = `Greetings, Dungeon Master. Our party is assembled. We want a ${tone} start. Please introduce yourself and set the starting scene for us.`;
       const response = await this.chatSession.sendMessage({ message: initialPrompt });
       return { 
         text: response.text || "The DM remains silent...",

@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { DiceRoll } from '../types';
 
 interface Props {
+  characterId: string;
   onRoll: (roll: DiceRoll) => void;
 }
 
-const DiceRoller: React.FC<Props> = ({ onRoll }) => {
+const DiceRoller: React.FC<Props> = ({ characterId, onRoll }) => {
   const [bonus, setBonus] = useState(0);
   const dice = [4, 6, 8, 10, 12, 20, 100];
 
@@ -16,7 +17,8 @@ const DiceRoller: React.FC<Props> = ({ onRoll }) => {
       sides,
       result,
       bonus,
-      total: result + bonus
+      total: result + bonus,
+      characterId
     });
   };
 
