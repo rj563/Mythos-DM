@@ -1,7 +1,5 @@
 {
   "name": "Mythos DM: D&D 5e Adventure Companion",
   "description": "An immersive AI-powered Dungeon Master for Dungeons & Dragons 5e adventures. Features a character sheet, dice roller, and a responsive chat interface for epic storytelling.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "requestFramePermissions": []
 }
