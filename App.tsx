@@ -246,11 +246,6 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleLeaveToGateway = () => {
-    // Force a complete page reload to reset all application state
-    window.location.reload();
-  };
-
   const handleSendMessage = async (text: string, charId: string) => {
     const char = gameState.party.find(c => c.id === charId);
     const enrichedText = `**${char?.name || 'Adventurer'}**: ${text}`;
@@ -365,6 +360,37 @@ const App: React.FC = () => {
     }
     setLevelUpOptions([]);
     setGameState(prev => ({ ...prev, showLevelUp: false }));
+  };
+
+  const handleReturnToMenu = () => {
+    if (gameState.phase === 'ADVENTURE' && gameState.party.length > 0) {
+      const id = gameState.sessionId || crypto.randomUUID();
+      const name = gameState.party[0]?.name ? `Saga of ${gameState.party[0].name}` : `Saga ${new Date().toLocaleDateString()}`;
+      
+      const newSaga: SavedSaga = {
+        id,
+        name,
+        state: { ...gameState, sessionId: id, lastSavedAt: Date.now() },
+        timestamp: Date.now()
+      };
+      
+      const updated = [newSaga, ...savedSagas.filter(s => s.id !== id)].slice(0, 10);
+      setSavedSagas(updated);
+      localStorage.setItem('mythos-dm-vault', JSON.stringify(updated));
+    }
+
+    setGameState({
+      party: [],
+      activeCharacterId: '',
+      history: [],
+      isStarted: false,
+      totalTokensUsed: 0,
+      modelId: 'gemini-3-pro-preview',
+      phase: 'MODE_SELECT',
+      players: {},
+      isHost: true
+    });
+    setIsMenuOpen(false);
   };
 
   const renderPhase = () => {
@@ -719,12 +745,10 @@ const App: React.FC = () => {
              </button>
              {isMenuOpen && (
                <div className="absolute top-16 left-0 w-64 bg-slate-900 border border-amber-500/50 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in zoom-in-95 duration-200">
-                  <button onClick={handleLeaveToGateway} className="w-full text-left p-4 hover:bg-slate-800 rounded-xl flex items-center gap-3 text-rose-400 hover:text-rose-300 transition-colors">
+                  <button onClick={handleReturnToMenu} className="w-full text-left p-4 hover:bg-slate-800 rounded-xl flex items-center gap-3 text-amber-500 hover:text-amber-400 transition-colors">
                      <LogOut size={18} />
-                     <span className="font-bold uppercase tracking-widest text-xs">Gateway (Leave)</span>
+                     <span className="font-bold uppercase tracking-widest text-xs">Return to Main Menu</span>
                   </button>
-                  <div className="h-px bg-slate-800 my-1" />
-                  <div className="p-4 text-xs text-slate-500 text-center uppercase tracking-widest">More options soon</div>
                </div>
              )}
           </div>
