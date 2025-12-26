@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GameState, Message, Character, DiceRoll, SessionMode, GeminiModelId, AppPhase, PlayerStatus, SavedSaga, LevelUpChoice } from './types';
+import { GameState, GameState as GameStateType, Message, Character, DiceRoll, SessionMode, GeminiModelId, AppPhase, PlayerStatus, SavedSaga, LevelUpChoice } from './types';
 import { generateRoomCode, PREMADE_HEROES, CHARACTER_COLORS, DND_RACES } from './constants';
 import { dmService, ClassSuggestion } from './services/geminiService';
 import ChatInterface from './components/ChatInterface';
 import CharacterSheet from './components/CharacterSheet';
-import DiceRoller from './components/DiceRoller';
-import { Sword, AlertCircle, Plus, Users, Share2, Globe, User, Users2, Flame, Tent, Battery, Key, ShieldCheck, Zap, Brain, Sparkles, Check, X, ShieldAlert, ChevronRight, RefreshCw, Wand2, Shield, Scroll, Loader2, Heart, Briefcase, ZapIcon, Wand, Save, BookMarked, Download, Upload, History, Trash2, Layout, BookOpen, Crown } from 'lucide-react';
+import { Sword, AlertCircle, Plus, Users, Share2, Globe, User, Users2, Flame, Tent, Battery, Key, ShieldCheck, Zap, Brain, Sparkles, Check, X, ShieldAlert, ChevronRight, RefreshCw, Wand2, Shield, Scroll, Loader2, Heart, Briefcase, Wand, Save, BookMarked, Download, Upload, History, Trash2, Layout, BookOpen, Crown, Menu, LogOut, Settings, ArrowLeft } from 'lucide-react';
 import Gun from 'gun';
 
 const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
 const MAX_SAGA_TOKENS = 1000000; 
 
-const MODEL_OPTIONS: { id: GeminiModelId, name: string, icon: any, desc: string, color: string }[] = [
-  { id: 'gemini-3-pro-preview', name: 'The Arch-Mage', icon: Brain, desc: 'Deepest reasoning. Best for complex logic.', color: 'amber' },
-  { id: 'gemini-3-flash-preview', name: 'The Swift Rogue', icon: Zap, desc: 'Balanced and fast. Ideal for storytelling.', color: 'sky' },
-  { id: 'gemini-flash-lite-latest', name: 'The Nimble Sprite', icon: Sparkles, desc: 'Ultra-efficient. Conserves saga energy.', color: 'emerald' }
+const MODEL_OPTIONS: { id: GeminiModelId, name: string, icon: any, desc: string, sub: string, color: string }[] = [
+  { id: 'gemini-3-pro-preview', name: 'The Arch-Mage', icon: Brain, desc: 'Deepest reasoning. Best for complex logic.', sub: 'Model: Gemini 3 Pro (Higher Cost)', color: 'amber' },
+  { id: 'gemini-3-flash-preview', name: 'The Swift Rogue', icon: Zap, desc: 'Balanced and fast. Ideal for storytelling.', sub: 'Model: Gemini 3 Flash (Balanced)', color: 'sky' },
+  { id: 'gemini-flash-lite-latest', name: 'The Nimble Sprite', icon: Sparkles, desc: 'Ultra-efficient. Conserves saga energy.', sub: 'Model: Flash Lite (Lowest Cost)', color: 'emerald' }
 ];
 
 const App: React.FC = () => {
@@ -52,12 +51,14 @@ const App: React.FC = () => {
   const [isLeveling, setIsLeveling] = useState(false);
   const [activeTabId, setActiveTabId] = useState<string>('');
   const [joinCodeInput, setJoinCodeInput] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isRemoteChange = useRef(false);
 
   // Character Forge State
   const [forgeStep, setForgeStep] = useState(0);
+  const [forgeStyle, setForgeStyle] = useState<'classic' | 'wild'>('classic');
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const [classConcept, setClassConcept] = useState('');
+  const [classConcept, setClassConcept] = useState(''); 
   const [classSuggestion, setClassSuggestion] = useState<ClassSuggestion | null>(null);
   const [forgeData, setForgeData] = useState<Partial<Character>>({
     name: '', race: '', class: '', notes: '', level: 1, hp: 10, maxHp: 10, ac: 12,
@@ -107,7 +108,6 @@ const App: React.FC = () => {
           setGameState(prev => ({
             ...prev,
             ...remoteState,
-            // If we are joining, we accept the host's phase. If we were in MODE_SELECT, we jump to host's phase.
             phase: prev.phase === 'MODE_SELECT' || prev.phase === 'LOBBY' ? remoteState.phase : prev.phase
           }));
           setTimeout(() => { isRemoteChange.current = false; }, 100);
@@ -137,6 +137,14 @@ const App: React.FC = () => {
     localStorage.setItem('mythos-dm-vault', JSON.stringify(updated));
     setSaveStatus("Etched in Vault");
     setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const loadSaga = (saga: SavedSaga) => {
+    setGameState({
+      ...saga.state,
+      isStarted: true,
+      phase: 'ADVENTURE'
+    });
   };
 
   const handleExportSaga = () => {
@@ -201,6 +209,13 @@ const App: React.FC = () => {
     }));
   };
 
+  const handleLeaveToGateway = () => {
+    if (confirm("Are you sure you want to return to the Gateway? Current session state is preserved.")) {
+      setIsMenuOpen(false);
+      setGameState(prev => ({ ...prev, phase: 'MODE_SELECT', isStarted: false }));
+    }
+  };
+
   const handleSendMessage = async (text: string, charId: string) => {
     const char = gameState.party.find(c => c.id === charId);
     const enrichedText = `**${char?.name || 'Adventurer'}**: ${text}`;
@@ -213,7 +228,6 @@ const App: React.FC = () => {
       const rollMatch = fullText.match(/{{ROLL:(\w+)}}/);
       const levelUpMatch = fullText.includes('{{LEVEL_UP}}');
       
-      // Look for sheet updates
       const sheetUpdateMatch = fullText.match(/{{UPDATE_SHEET:({.*?})}}/);
       if (sheetUpdateMatch) {
         try {
@@ -245,10 +259,11 @@ const App: React.FC = () => {
     if (!classConcept || !forgeData.race) return;
     setIsSuggesting(true);
     try {
-      const suggestion = await dmService.suggestClasses(classConcept, forgeData.race, gameState.modelId);
+      const suggestion = await dmService.suggestClasses(classConcept, forgeData.race, forgeStyle, gameState.modelId);
       if (suggestion) {
         setClassSuggestion(suggestion);
-        setForgeStep(3);
+        setForgeData(prev => ({...prev, stats: suggestion.stats}));
+        setForgeStep(4);
       }
     } catch (e) {
       setError("The Oracle is silent. Try again later.");
@@ -258,17 +273,18 @@ const App: React.FC = () => {
   };
 
   const handleFinalizeForge = async () => {
+    if (!classSuggestion) return;
     setIsLoading(true);
     try {
       const sheet = await dmService.generateCharacterSheet(
         forgeData.name || '',
         forgeData.race || '',
-        forgeData.class || '',
-        forgeData.notes || '',
+        `${classSuggestion.className} (${classSuggestion.subclassName})`,
+        classConcept,
+        forgeData.stats,
         gameState.modelId
       );
-      // Assign ownership to current player
-      const newChar = { ...forgeData, ...sheet, ownerId: myPlayerId.current };
+      const newChar = { ...forgeData, ...sheet, class: `${classSuggestion.className} (${classSuggestion.subclassName})`, notes: sheet.notes, ownerId: myPlayerId.current };
       setForgeData(newChar);
       setGameState(prev => ({ ...prev, phase: 'CHAR_REVIEW' }));
     } catch (e) {
@@ -288,7 +304,6 @@ const App: React.FC = () => {
   };
 
   const acceptLevelUp = (choice: LevelUpChoice) => {
-    // Instead of updating state locally, we tell the DM what happened and let it update the sheet (rolling HP etc)
     const char = gameState.party.find(c => c.id === gameState.activeCharacterId);
     if (char) {
       handleSendMessage(`I choose to learn **${choice.name}** (${choice.category}). Please update my character sheet, roll my Hit Die for HP increase, and describe my new powers!`, char.id);
@@ -301,70 +316,76 @@ const App: React.FC = () => {
     switch (gameState.phase) {
       case 'MODE_SELECT':
         return (
-          <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-16 animate-in fade-in duration-700">
-            <div className="space-y-12">
-              <h2 className="fantasy-font text-8xl text-amber-500 tracking-tighter">Gateway</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <button onClick={() => setGameState(prev => ({ ...prev, sessionMode: 'solo', phase: 'MODEL_SELECT', isHost: true }))} className="group bg-slate-900 border border-slate-800 hover:border-amber-500 p-8 rounded-[32px] flex flex-col items-center gap-6 transition-all hover:-translate-y-2 shadow-xl">
-                  <User size={60} className="text-slate-600 group-hover:text-amber-500" />
-                  <div className="text-center">
-                    <h3 className="fantasy-font text-2xl text-white">Lone Hero</h3>
-                    <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest">Local Saga</p>
-                  </div>
-                </button>
-                <div className="group bg-slate-900 border border-slate-800 hover:border-sky-500 p-8 rounded-[32px] flex flex-col items-center gap-6 transition-all hover:-translate-y-2 shadow-xl relative overflow-hidden">
-                  <div className="absolute inset-0 bg-sky-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <Users2 size={60} className="text-slate-600 group-hover:text-sky-500" />
-                  <div className="text-center w-full z-10 space-y-4">
-                    <h3 className="fantasy-font text-2xl text-white">The Fellowship</h3>
-                    <div className="flex flex-col gap-2">
-                      <button onClick={() => setGameState(prev => ({ ...prev, sessionMode: 'online', phase: 'MODEL_SELECT', isHost: true }))} className="w-full py-3 bg-slate-800 hover:bg-sky-600 text-sky-400 hover:text-white rounded-xl text-xs font-bold uppercase tracking-widest transition-all">Host Saga</button>
-                      <div className="flex gap-2">
-                        <input 
-                          value={joinCodeInput} 
-                          onChange={(e) => setJoinCodeInput(e.target.value)} 
-                          placeholder="Code..." 
-                          className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-xs font-mono uppercase focus:border-sky-500 outline-none"
-                        />
-                        <button onClick={handleJoinSession} className="px-4 py-3 bg-slate-800 hover:bg-sky-600 text-white rounded-xl"><ChevronRight size={16}/></button>
+          <div className="max-w-6xl w-full grid grid-cols-1 gap-16 animate-in fade-in duration-700 pt-28 pb-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+              <div className="space-y-12">
+                <h2 className="fantasy-font text-8xl text-amber-500 tracking-tighter">Gateway</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <button onClick={() => setGameState(prev => ({ ...prev, sessionMode: 'solo', phase: 'MODEL_SELECT', isHost: true }))} className="group bg-slate-900 border border-slate-800 hover:border-amber-500 p-8 rounded-[32px] flex flex-col items-center gap-6 transition-all hover:-translate-y-2 shadow-xl">
+                    <User size={60} className="text-slate-600 group-hover:text-amber-500" />
+                    <div className="text-center">
+                      <h3 className="fantasy-font text-2xl text-white">Lone Hero</h3>
+                      <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest">Local Saga</p>
+                    </div>
+                  </button>
+                  <div className="group bg-slate-900 border border-slate-800 hover:border-sky-500 p-8 rounded-[32px] flex flex-col items-center gap-6 transition-all hover:-translate-y-2 shadow-xl relative overflow-hidden">
+                    <div className="absolute inset-0 bg-sky-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Users2 size={60} className="text-slate-600 group-hover:text-sky-500" />
+                    <div className="text-center w-full z-10 space-y-4">
+                      <h3 className="fantasy-font text-2xl text-white">The Fellowship</h3>
+                      <div className="flex flex-col gap-2">
+                        <button onClick={() => setGameState(prev => ({ ...prev, sessionMode: 'online', phase: 'MODEL_SELECT', isHost: true }))} className="w-full py-3 bg-slate-800 hover:bg-sky-600 text-sky-400 hover:text-white rounded-xl text-xs font-bold uppercase tracking-widest transition-all">Host Saga</button>
+                        <div className="flex gap-2">
+                          <input 
+                            value={joinCodeInput} 
+                            onChange={(e) => setJoinCodeInput(e.target.value)} 
+                            placeholder="Code..." 
+                            className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-xs font-mono uppercase focus:border-sky-500 outline-none"
+                          />
+                          <button onClick={handleJoinSession} className="px-4 py-3 bg-slate-800 hover:bg-sky-600 text-white rounded-xl"><ChevronRight size={16}/></button>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
+                <div className="pt-8 border-t border-slate-900">
+                   <label className="flex items-center gap-4 px-8 py-5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-sm font-bold uppercase tracking-widest cursor-pointer transition-all shadow-xl w-full">
+                      <Upload size={20} className="text-amber-500" />
+                      Restore from Scroll (JSON)
+                      <input type="file" accept=".json" onChange={handleImportSaga} className="hidden" />
+                   </label>
+                </div>
               </div>
-              <div className="pt-8 border-t border-slate-900">
-                 <label className="flex items-center gap-4 px-8 py-5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-sm font-bold uppercase tracking-widest cursor-pointer transition-all shadow-xl w-full">
-                    <Upload size={20} className="text-amber-500" />
-                    Restore from Scroll (JSON)
-                    <input type="file" accept=".json" onChange={handleImportSaga} className="hidden" />
-                 </label>
-              </div>
-            </div>
 
-            <div className="space-y-10 bg-slate-900/50 p-10 rounded-[50px] border border-slate-900 shadow-2xl">
-              <div className="flex items-center gap-3 text-amber-500">
-                <History size={32} />
-                <h3 className="fantasy-font text-4xl">Hall of Heroes</h3>
-              </div>
-              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
-                {savedSagas.length === 0 ? (
-                  <div className="py-20 text-center text-slate-700 font-mono uppercase tracking-widest text-xs italic">
-                    "No inscriptions yet. Your deeds await."
-                  </div>
-                ) : (
-                  savedSagas.map(saga => (
-                    <div key={saga.id} className="group relative bg-slate-900 border border-slate-800 p-6 rounded-3xl hover:border-amber-500/50 transition-all flex items-center justify-between">
-                      <button onClick={() => setGameState(saga.state)} className="flex-1 text-left flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-slate-950 flex items-center justify-center text-amber-500 font-bold border border-slate-800">{saga.state.party[0]?.name[0] || '?'}</div>
-                        <div>
-                          <h4 className="fantasy-font text-xl text-slate-200 group-hover:text-amber-500 transition-colors">{saga.name}</h4>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-tighter">Level {saga.state.party[0]?.level || 1} • {new Date(saga.timestamp).toLocaleDateString()}</p>
-                        </div>
-                      </button>
-                      <button onClick={() => deleteSaga(saga.id)} className="p-2 text-slate-700 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16}/></button>
+              <div className="space-y-6 bg-slate-900/50 p-8 rounded-[40px] border border-slate-900 shadow-2xl overflow-hidden flex flex-col h-[500px]">
+                <div className="flex items-center gap-3 text-amber-500">
+                  <History size={28} />
+                  <h3 className="fantasy-font text-3xl">Hall of Heroes</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
+                  {savedSagas.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-center text-slate-700 font-mono uppercase tracking-widest text-xs italic">
+                      "No inscriptions yet. Your deeds await."
                     </div>
-                  ))
-                )}
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3">
+                      {savedSagas.map(saga => (
+                        <div key={saga.id} className="group relative bg-slate-900 border border-slate-800 p-4 rounded-2xl hover:border-amber-500/50 transition-all flex items-center justify-between">
+                          <button onClick={() => loadSaga(saga)} className="flex-1 text-left flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-slate-950 flex items-center justify-center text-amber-500 font-bold border border-slate-800 text-sm">
+                                {saga.state.party[0]?.name[0] || '?'}
+                            </div>
+                            <div>
+                              <h4 className="fantasy-font text-lg text-slate-200 group-hover:text-amber-500 transition-colors truncate w-40">{saga.name}</h4>
+                              <p className="text-[9px] text-slate-500 uppercase tracking-tighter">Lv.{saga.state.party[0]?.level || 1} • {new Date(saga.timestamp).toLocaleDateString()}</p>
+                            </div>
+                          </button>
+                          <button onClick={() => deleteSaga(saga.id)} className="p-2 text-slate-700 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14}/></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -372,7 +393,7 @@ const App: React.FC = () => {
 
       case 'MODEL_SELECT':
         return (
-          <div className="max-w-5xl w-full space-y-12 animate-in slide-in-from-bottom-8 duration-500">
+          <div className="max-w-5xl w-full space-y-12 animate-in slide-in-from-bottom-8 duration-500 pt-24">
             <h2 className="fantasy-font text-6xl text-amber-500 text-center">Chamber of Spirits</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {MODEL_OPTIONS.map(m => (
@@ -380,84 +401,125 @@ const App: React.FC = () => {
                   <div className={`p-4 rounded-2xl bg-${m.color}-500/20 text-${m.color}-500`}><m.icon size={40} /></div>
                   <h4 className="fantasy-font text-2xl text-white">{m.name}</h4>
                   <p className="text-sm text-slate-400">{m.desc}</p>
+                  <div className="mt-auto pt-4 border-t border-white/5">
+                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500 group-hover:text-slate-300">{m.sub}</p>
+                  </div>
                 </button>
               ))}
+            </div>
+            <div className="flex justify-center">
+               <button onClick={() => setGameState(prev => ({ ...prev, phase: 'MODE_SELECT' }))} className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors uppercase font-bold text-xs tracking-widest"><ArrowLeft size={16}/> Back</button>
             </div>
           </div>
         );
 
       case 'CHAR_SELECT':
         return (
-          <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 animate-in fade-in duration-700">
+          <div className="max-w-7xl w-full grid grid-cols-1 gap-12 animate-in fade-in duration-700 pt-24 pb-12">
             <div className="space-y-10">
-              <h2 className="fantasy-font text-6xl text-amber-500">Manifest Hero</h2>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="flex justify-between items-center">
+                  <h2 className="fantasy-font text-6xl text-amber-500">Manifest Hero</h2>
+                  <button onClick={() => { setForgeStep(0); setGameState(prev => ({ ...prev, phase: 'CHAR_FORGE' })); }} className="py-4 px-8 border-2 border-dashed border-amber-600/50 rounded-[24px] text-amber-500 hover:text-white hover:bg-amber-600 transition-all font-bold flex items-center gap-3 bg-slate-900/50">
+                    <Plus size={24} /> <span>Open The Forge (Custom)</span>
+                  </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {PREMADE_HEROES.map((hero, i) => (
-                  <button key={i} onClick={() => { const char = { ...hero, id: crypto.randomUUID(), ownerId: myPlayerId.current } as Character; setGameState(prev => ({ ...prev, party: [char], phase: 'LOBBY' })); }} className="w-full flex items-center gap-6 bg-slate-900 border border-slate-800 p-6 rounded-[24px] hover:border-amber-500 transition-all text-left">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl font-bold" style={{ backgroundColor: hero.color }}>{hero.name[0]}</div>
-                    <div>
-                      <h4 className="fantasy-font text-xl text-white">{hero.name}</h4>
-                      <p className="text-xs text-slate-500 uppercase">{hero.race} • {hero.class}</p>
+                  <button key={i} onClick={() => { const char = { ...hero, id: crypto.randomUUID(), ownerId: myPlayerId.current } as Character; setGameState(prev => ({ ...prev, party: [char], phase: 'LOBBY' })); }} className="w-full flex items-center gap-4 bg-slate-900 border border-slate-800 p-4 rounded-[24px] hover:border-amber-500 transition-all text-left group">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg font-bold shadow-lg" style={{ backgroundColor: hero.color }}>{hero.name[0]}</div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="fantasy-font text-lg text-white truncate group-hover:text-amber-400 transition-colors">{hero.name}</h4>
+                      <p className="text-[10px] text-slate-500 uppercase truncate">{hero.race} • {hero.class}</p>
                     </div>
                   </button>
                 ))}
-                <button onClick={() => { setForgeStep(0); setGameState(prev => ({ ...prev, phase: 'CHAR_FORGE' })); }} className="w-full py-8 border-2 border-dashed border-slate-800 rounded-[24px] text-slate-500 hover:text-amber-500 hover:border-amber-500 transition-all font-bold flex flex-col items-center gap-2">
-                  <Plus size={24} /> <span>Forge Custom Hero</span>
-                </button>
               </div>
+              <div className="flex justify-center pt-8">
+               <button onClick={() => setGameState(prev => ({ ...prev, phase: 'MODE_SELECT' }))} className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors uppercase font-bold text-xs tracking-widest"><ArrowLeft size={16}/> Back</button>
             </div>
-            <div className="hidden lg:flex flex-col justify-center bg-slate-900 border border-slate-800 rounded-[60px] p-16 relative overflow-hidden shadow-2xl">
-               <Sword size={400} className="absolute -top-10 -right-10 opacity-5" />
-               <Scroll className="text-amber-500/20 mb-8" size={64} />
-               <h3 className="fantasy-font text-3xl text-slate-300">The Host's Appraisal</h3>
-               <p className="text-slate-500 italic leading-relaxed text-lg font-serif">"Coordination is the key to survival. The DM awaits your signal."</p>
             </div>
           </div>
         );
 
       case 'CHAR_FORGE':
         return (
-          <div className="max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-[50px] p-16 shadow-2xl animate-in zoom-in duration-500">
+          <div className="max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-[50px] p-16 shadow-2xl animate-in zoom-in duration-500 pt-16">
             <div className="space-y-12">
                <div className="flex gap-2 mb-10">
                   {[0,1,2,3,4].map(i => <div key={i} className={`h-1 w-12 rounded-full ${i <= forgeStep ? 'bg-amber-500' : 'bg-slate-800'}`} />)}
                </div>
+
                {forgeStep === 0 && (
-                 <div className="space-y-6">
-                    <h2 className="fantasy-font text-5xl text-amber-500">What is your name?</h2>
-                    <input autoFocus className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-8 py-6 text-2xl text-white focus:border-amber-500 outline-none" placeholder="Name..." value={forgeData.name} onChange={e => setForgeData({...forgeData, name: e.target.value})} onKeyDown={e => e.key === 'Enter' && setForgeStep(1)} />
+                 <div className="space-y-8 animate-in fade-in slide-in-from-right-8">
+                   <h2 className="fantasy-font text-5xl text-amber-500">Choose your Path</h2>
+                   <div className="grid grid-cols-2 gap-6">
+                     <button onClick={() => { setForgeStyle('classic'); setForgeStep(1); }} className="p-8 bg-slate-950 border border-slate-800 hover:border-amber-500 rounded-3xl text-left transition-all hover:-translate-y-1 group">
+                        <Shield className="w-12 h-12 text-sky-500 mb-4 group-hover:scale-110 transition-transform"/>
+                        <h3 className="fantasy-font text-3xl text-white mb-2">Classic Hero</h3>
+                        <p className="text-slate-400 text-sm">Reliable archetypes from the core rules. Best for traditional adventures.</p>
+                     </button>
+                     <button onClick={() => { setForgeStyle('wild'); setForgeStep(1); }} className="p-8 bg-slate-950 border border-slate-800 hover:border-amber-500 rounded-3xl text-left transition-all hover:-translate-y-1 group">
+                        <Flame className="w-12 h-12 text-rose-500 mb-4 group-hover:scale-110 transition-transform"/>
+                        <h3 className="fantasy-font text-3xl text-white mb-2">Wild Soul</h3>
+                        <p className="text-slate-400 text-sm">Exotic, unconventional, and experimental builds. Expect the unexpected.</p>
+                     </button>
+                   </div>
+                   <button onClick={() => setGameState(prev => ({...prev, phase: 'CHAR_SELECT'}))} className="text-slate-600 hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14}/> Cancel Forge</button>
                  </div>
                )}
+
                {forgeStep === 1 && (
-                 <div className="space-y-6">
-                    <h2 className="fantasy-font text-5xl text-amber-500">Of what race?</h2>
-                    <div className="grid grid-cols-3 gap-4">
-                      {DND_RACES.map(r => <button key={r} onClick={() => { setForgeData({...forgeData, race: r}); setForgeStep(2); }} className="py-4 bg-slate-950 border border-slate-800 hover:border-amber-500 text-white rounded-xl uppercase text-xs font-bold tracking-widest">{r}</button>)}
-                    </div>
+                 <div className="space-y-6 animate-in fade-in slide-in-from-right-8">
+                    <h2 className="fantasy-font text-5xl text-amber-500">What is your name?</h2>
+                    <input autoFocus className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-8 py-6 text-2xl text-white focus:border-amber-500 outline-none" placeholder="Name..." value={forgeData.name} onChange={e => setForgeData({...forgeData, name: e.target.value})} onKeyDown={e => e.key === 'Enter' && setForgeStep(2)} />
+                    <button onClick={() => setForgeStep(0)} className="text-slate-600 hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14}/> Back</button>
                  </div>
                )}
                {forgeStep === 2 && (
-                 <div className="space-y-6">
-                    <h2 className="fantasy-font text-5xl text-amber-500">Your dream calling?</h2>
-                    <textarea autoFocus className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-8 py-6 text-xl text-white min-h-[150px] outline-none" placeholder="Ex: A shadow-bending rogue who uses poison..." value={classConcept} onChange={e => setClassConcept(e.target.value)} />
-                    <button onClick={handleSuggestClasses} disabled={isSuggesting} className="w-full py-5 bg-sky-600 rounded-2xl text-white font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl">{isSuggesting ? <Loader2 className="animate-spin"/> : <Sparkles/>} Get Suggestion</button>
-                 </div>
-               )}
-               {forgeStep === 3 && classSuggestion && (
-                 <div className="space-y-8 animate-in zoom-in">
-                    <div className="p-10 rounded-[40px] bg-slate-950 border-2 border-amber-500 shadow-2xl text-center">
-                       <h4 className="fantasy-font text-4xl text-amber-500 mb-2">{classSuggestion.className}</h4>
-                       <p className="text-sky-400 font-bold uppercase text-xs mb-4">{classSuggestion.subclassName}</p>
-                       <p className="text-slate-300 italic">"{classSuggestion.flavorText}"</p>
+                 <div className="space-y-6 animate-in fade-in slide-in-from-right-8">
+                    <h2 className="fantasy-font text-5xl text-amber-500">Of what race?</h2>
+                    <div className="grid grid-cols-3 gap-4">
+                      {DND_RACES.map(r => <button key={r} onClick={() => { setForgeData({...forgeData, race: r}); setForgeStep(3); }} className="py-4 bg-slate-950 border border-slate-800 hover:border-amber-500 text-white rounded-xl uppercase text-xs font-bold tracking-widest">{r}</button>)}
                     </div>
-                    <button onClick={() => { setForgeData({...forgeData, class: `${classSuggestion.className} (${classSuggestion.subclassName})`}); setForgeStep(4); }} className="w-full py-6 bg-amber-600 rounded-2xl text-white font-bold uppercase">Perfect, Continue</button>
+                    <button onClick={() => setForgeStep(1)} className="text-slate-600 hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14}/> Back</button>
                  </div>
                )}
-               {forgeStep === 4 && (
-                 <div className="space-y-6">
-                    <h2 className="fantasy-font text-5xl text-amber-500">Your origin...</h2>
-                    <textarea autoFocus className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-8 py-6 text-lg text-white min-h-[200px] outline-none" value={forgeData.notes} onChange={e => setForgeData({...forgeData, notes: e.target.value})} />
-                    <button onClick={handleFinalizeForge} disabled={isLoading} className="w-full py-6 bg-emerald-600 rounded-2xl text-white font-bold uppercase flex items-center justify-center gap-3 shadow-xl">{isLoading && <Loader2 className="animate-spin"/>} Manifest Hero</button>
+               {forgeStep === 3 && (
+                 <div className="space-y-6 animate-in fade-in slide-in-from-right-8">
+                    <h2 className="fantasy-font text-5xl text-amber-500">The Legend Begins...</h2>
+                    <div className="space-y-2">
+                      <p className="text-slate-400 text-sm">Describe your character's concept, combat style, and origin story in one go. The DM will suggest the perfect class and stats.</p>
+                      <textarea autoFocus className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-8 py-6 text-xl text-white min-h-[200px] outline-none focus:border-amber-500" placeholder="Ex: I was a street urchin who found a cursed tome. I want to blast enemies with fire but also be sneaky..." value={classConcept} onChange={e => setClassConcept(e.target.value)} />
+                    </div>
+                    <button onClick={handleSuggestClasses} disabled={isSuggesting} className="w-full py-5 bg-sky-600 rounded-2xl text-white font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:bg-sky-500 transition-all">{isSuggesting ? <Loader2 className="animate-spin"/> : <Sparkles/>} Reveal Destiny ({forgeStyle})</button>
+                    <button onClick={() => setForgeStep(2)} className="text-slate-600 hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2"><ArrowLeft size={14}/> Back</button>
+                 </div>
+               )}
+               {forgeStep === 4 && classSuggestion && (
+                 <div className="space-y-8 animate-in zoom-in">
+                    <div className="p-10 rounded-[40px] bg-slate-950 border-2 border-amber-500 shadow-2xl text-center space-y-6">
+                       <div>
+                         <h4 className="fantasy-font text-4xl text-amber-500 mb-2">{classSuggestion.className}</h4>
+                         <p className="text-sky-400 font-bold uppercase text-xs mb-4">{classSuggestion.subclassName}</p>
+                         <p className="text-slate-300 italic">"{classSuggestion.flavorText}"</p>
+                       </div>
+                       
+                       <div className="pt-6 border-t border-slate-800">
+                          <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest mb-4">Projected Attributes</p>
+                          <div className="grid grid-cols-6 gap-2">
+                             {Object.entries(classSuggestion.stats).map(([k, v]) => (
+                               <div key={k} className="bg-slate-900 border border-slate-800 rounded-lg p-2">
+                                  <div className="text-[10px] uppercase text-slate-500 font-bold">{k}</div>
+                                  <div className="text-xl text-white font-bold">{v}</div>
+                               </div>
+                             ))}
+                          </div>
+                       </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <button onClick={() => setForgeStep(3)} className="flex-1 py-6 bg-slate-800 rounded-2xl text-slate-400 hover:text-white font-bold uppercase border border-slate-700 hover:bg-slate-700">Try Again</button>
+                      <button onClick={handleFinalizeForge} disabled={isLoading} className="flex-[2] py-6 bg-emerald-600 rounded-2xl text-white font-bold uppercase flex items-center justify-center gap-3 shadow-xl hover:bg-emerald-500 transition-all">{isLoading ? <Loader2 className="animate-spin"/> : <Check />} Accept Destiny</button>
+                    </div>
                  </div>
                )}
             </div>
@@ -484,7 +546,7 @@ const App: React.FC = () => {
                      <div className="flex flex-wrap gap-2">{forgeData.inventory?.map((it, i) => <span key={i} className="px-3 py-1 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300">• {it}</span>)}</div>
                    </div>
                    <div>
-                     <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-3 flex items-center gap-2"><Sparkles size={12}/> Features</h4>
+                     <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-3 flex items-center gap-2"><Sparkles size={12}/> Features & Spells</h4>
                      <p className="p-6 bg-slate-950 border border-slate-800 rounded-3xl text-sm text-slate-400 italic whitespace-pre-wrap">{forgeData.notes}</p>
                    </div>
                    <button onClick={() => { const char = { ...forgeData, id: crypto.randomUUID(), ownerId: myPlayerId.current } as Character; setGameState(prev => ({ ...prev, party: [char], phase: 'LOBBY' })); }} className="w-full py-6 bg-amber-600 rounded-2xl text-white font-bold uppercase text-lg shadow-xl hover:bg-amber-500 transition-all">Embark on Quest</button>
@@ -496,7 +558,7 @@ const App: React.FC = () => {
 
       case 'LOBBY':
         return (
-          <div className="max-w-md w-full space-y-12 text-center animate-in zoom-in">
+          <div className="max-w-md w-full space-y-12 text-center animate-in zoom-in pt-24">
              <BookMarked className="mx-auto text-amber-500" size={100} />
              <div className="space-y-4">
                <h2 className="fantasy-font text-5xl text-white">The Party Circle</h2>
@@ -523,16 +585,32 @@ const App: React.FC = () => {
   };
 
   const activeCharInGame = gameState.party.find(c => c.id === gameState.activeCharacterId) || gameState.party[0];
-  const sagaEnergy = Math.max(0, 100 - (gameState.totalTokensUsed / MAX_SAGA_TOKENS * 100)).toFixed(1);
   const selectedModel = MODEL_OPTIONS.find(m => m.id === gameState.modelId) || MODEL_OPTIONS[0];
 
   const currentHeroForTab = gameState.party.find(p => p.id === activeTabId) || gameState.party[0];
 
   return (
     <div className="min-h-screen flex flex-col h-screen overflow-hidden bg-slate-950">
-      <header className="bg-slate-900 border-b border-slate-800 px-8 py-6 flex items-center justify-between z-10 shadow-2xl">
+      <header className="bg-slate-900 border-b border-slate-800 px-8 py-6 flex items-center justify-between z-10 shadow-2xl absolute top-0 left-0 w-full">
         <div className="flex items-center gap-4">
-          <div className="bg-amber-600 p-3 rounded-2xl shadow-inner"><Sword className="text-white w-7 h-7" /></div>
+          <div className="relative">
+             <button 
+               onClick={() => setIsMenuOpen(!isMenuOpen)} 
+               className="bg-amber-600 hover:bg-amber-500 p-3 rounded-2xl shadow-inner transition-all relative z-50"
+             >
+               {isMenuOpen ? <X className="text-white w-7 h-7" /> : <Sword className="text-white w-7 h-7" />}
+             </button>
+             {isMenuOpen && (
+               <div className="absolute top-16 left-0 w-64 bg-slate-900 border border-amber-500/50 rounded-2xl shadow-2xl p-2 z-[60] animate-in fade-in zoom-in-95 duration-200">
+                  <button onClick={handleLeaveToGateway} className="w-full text-left p-4 hover:bg-slate-800 rounded-xl flex items-center gap-3 text-rose-400 hover:text-rose-300 transition-colors">
+                     <LogOut size={18} />
+                     <span className="font-bold uppercase tracking-widest text-xs">Gateway (Leave)</span>
+                  </button>
+                  <div className="h-px bg-slate-800 my-1" />
+                  <div className="p-4 text-xs text-slate-500 text-center uppercase tracking-widest">More options soon</div>
+               </div>
+             )}
+          </div>
           <h1 className="fantasy-font text-3xl font-bold tracking-widest text-slate-100 uppercase">Mythos DM</h1>
         </div>
         <div className="flex gap-4 items-center">
@@ -543,15 +621,20 @@ const App: React.FC = () => {
                   {saveStatus}
                 </div>
               )}
+              <button 
+                onClick={() => setShowQuickStats(!showQuickStats)} 
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition-all shadow-lg ${showQuickStats ? 'bg-amber-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}
+              >
+                <Layout size={14}/> Stats
+              </button>
               <button onClick={handleSaveSaga} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold uppercase transition-all shadow-lg"><Save size={14}/> Inscribe</button>
               <button onClick={handleExportSaga} className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-[10px] font-bold uppercase transition-all shadow-lg"><Download size={14}/> Export</button>
             </div>
           )}
-          <button onClick={() => { if(confirm("Return to the Gateway? Current session state is preserved.")) setGameState(prev => ({ ...prev, phase: 'MODE_SELECT', isStarted: false })); }} className="text-xs text-slate-500 hover:text-rose-500 border border-slate-800 px-4 py-2 rounded-xl transition-all font-bold uppercase tracking-tighter">Gateway</button>
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden relative">
+      <main className="flex-1 flex overflow-hidden relative pt-[88px]">
         {gameState.phase !== 'ADVENTURE' ? (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950 p-8 overflow-y-auto custom-scrollbar">
             {renderPhase()}
@@ -574,21 +657,11 @@ const App: React.FC = () => {
               </div>
               <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
                 {currentHeroForTab && <CharacterSheet character={currentHeroForTab} />}
-                <DiceRoller onRoll={(roll) => handleSendMessage(`Rolls a d${roll.sides}. Result: ${roll.result} + ${roll.bonus} = **${roll.total}**`, activeCharInGame.id)} />
               </div>
             </aside>
             <section className="flex-1 flex flex-col p-6 bg-[#0c111d] relative">
               {error && <div className="mb-6 bg-rose-500/90 text-white p-4 rounded-2xl flex items-center justify-between shadow-2xl animate-in slide-in-from-top-4 z-50"><div className="flex items-center gap-3"><AlertCircle size={24}/> <span className="font-bold tracking-wide">{error}</span></div><button onClick={()=>setError(null)} className="p-1 hover:bg-white/20 rounded-lg transition-colors">×</button></div>}
               
-              <button 
-                onClick={() => setShowQuickStats(!showQuickStats)} 
-                className="fixed bottom-24 right-8 z-50 p-6 bg-amber-600 text-white rounded-[24px] shadow-2xl shadow-amber-900/40 hover:scale-105 active:scale-95 transition-all border-4 border-slate-950 flex flex-col items-center gap-1"
-                title="Quick Stats"
-              >
-                <Layout size={28} />
-                <span className="text-[9px] font-bold uppercase tracking-widest">Stats</span>
-              </button>
-
               <div className="flex items-center justify-end mb-4 h-12">
                 {gameState.showLevelUp && (
                   <button 
@@ -596,7 +669,7 @@ const App: React.FC = () => {
                     disabled={isLeveling}
                     className="flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold uppercase text-xs shadow-xl animate-pulse ring-4 ring-amber-500/20"
                   >
-                    {isLeveling ? <Loader2 className="animate-spin" size={16}/> : <ZapIcon size={16}/>}
+                    {isLeveling ? <Loader2 className="animate-spin" size={16}/> : <Zap size={16}/>}
                     Ascension Ready!
                   </button>
                 )}
@@ -621,7 +694,7 @@ const App: React.FC = () => {
 
             {/* Quick Stat Panel Overlay */}
             {showQuickStats && (
-              <div className="fixed inset-0 z-[55] bg-slate-950/90 backdrop-blur-xl p-6 overflow-y-auto animate-in fade-in slide-in-from-bottom-8">
+              <div className="fixed inset-0 z-[55] bg-slate-950/90 backdrop-blur-xl p-6 overflow-y-auto animate-in fade-in slide-in-from-bottom-8 pt-32">
                  <div className="flex justify-between items-center mb-8 border-b border-slate-800 pb-6">
                     <h3 className="fantasy-font text-4xl text-amber-500">The Hall of Heroes</h3>
                     <button onClick={() => setShowQuickStats(false)} className="p-4 bg-slate-800 rounded-2xl text-white"><X size={24}/></button>
@@ -630,12 +703,6 @@ const App: React.FC = () => {
                     {gameState.party.map(char => (
                       <CharacterSheet key={char.id} character={char} />
                     ))}
-                 </div>
-                 <div className="mt-12 max-w-xl mx-auto">
-                    <DiceRoller onRoll={(roll) => {
-                      handleSendMessage(`Rolls a d${roll.sides}. Result: ${roll.result} + ${roll.bonus} = **${roll.total}**`, activeCharInGame.id);
-                      setShowQuickStats(false);
-                    }} />
                  </div>
               </div>
             )}
@@ -670,8 +737,6 @@ const App: React.FC = () => {
       <footer className="bg-slate-900 border-t border-slate-800 p-3 flex justify-between items-center text-[10px] text-slate-500 font-mono tracking-widest uppercase">
         <div className="flex gap-6 items-center pl-4">
           <span className={`flex items-center gap-1.5 ${gameState.sessionId ? 'text-emerald-500' : 'text-slate-700'}`}><Globe size={12} /> {gameState.sessionId ? ' fellowship' : ' local'}</span>
-          <span className="text-slate-800">|</span>
-          <span className={`flex items-center gap-1.5 ${hasKey ? 'text-sky-400' : 'text-slate-700'}`}><Battery size={12} /> energy: {sagaEnergy}%</span>
         </div>
         <div className="flex gap-4 items-center pr-4">
           <span className="flex items-center gap-2 tracking-[0.3em]"><selectedModel.icon size={12}/> {selectedModel.name.toUpperCase()}</span>

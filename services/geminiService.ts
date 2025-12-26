@@ -6,6 +6,14 @@ export interface ClassSuggestion {
   className: string;
   subclassName: string;
   flavorText: string;
+  stats: {
+    str: number;
+    dex: number;
+    con: number;
+    int: number;
+    wis: number;
+    cha: number;
+  };
 }
 
 export class GeminiDMService {
@@ -19,17 +27,23 @@ export class GeminiDMService {
     return this.chatSession !== null;
   }
 
-  public async suggestClasses(concept: string, race: string, modelId: GeminiModelId): Promise<ClassSuggestion | null> {
+  public async suggestClasses(concept: string, race: string, style: 'classic' | 'wild', modelId: GeminiModelId): Promise<ClassSuggestion | null> {
     const ai = this.getClient();
-    const prompt = `You are a D&D 5e character creation expert. A player wants to create a character with this concept: "${concept}" and is playing as a ${race}. 
     
-    CRITICAL INSTRUCTION:
-    Do not limit yourself to standard tropes. Suggest **WILD, EXOTIC, AND UNCONVENTIONAL** combinations. 
-    Use extended sourcebooks (Tasha's, Xanathar's, etc.) for inspiration. 
-    Multiclassing is highly encouraged if it creates a unique flavor.
+    let styleInstruction = "";
+    if (style === 'wild') {
+      styleInstruction = `CRITICAL: Do not limit yourself to standard tropes. Suggest **WILD, EXOTIC, AND UNCONVENTIONAL** combinations. Use extended sourcebooks (Tasha's, Xanathar's, etc.) for inspiration. Multiclassing is highly encouraged if it creates a unique flavor. Give the class a COOL, UNIQUE TITLE.`;
+    } else {
+      styleInstruction = `CRITICAL: Stick to **CLASSIC, RELIABLE, AND ICONIC** D&D 5e archetypes (Player's Handbook style). Avoid over-complicated multiclassing unless necessary. Give the class a TRADITIONAL, HEROIC TITLE.`;
+    }
+
+    const prompt = `You are a D&D 5e character creation expert. A player wants to create a character with this Concept & Origin: "${concept}" and is playing as a ${race}.
+    
+    ${styleInstruction}
     
     Based on their description, provide exactly ONE perfect match suggestion.
     Explain why this specific combination matches their dream calling in 2-3 sentences.
+    ALSO: Suggest the optimal Stats using Standard Array (15, 14, 13, 12, 10, 8) for this build.
     Provide the response in JSON format.`;
 
     const response = await ai.models.generateContent({
@@ -40,11 +54,23 @@ export class GeminiDMService {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            className: { type: Type.STRING, description: "The main class or multiclass string" },
-            subclassName: { type: Type.STRING, description: "The subclass name or 'Custom Mix'" },
-            flavorText: { type: Type.STRING, description: "Explanation of why this is the perfect match" },
+            className: { type: Type.STRING, description: "The cool name of the class/build" },
+            subclassName: { type: Type.STRING, description: "The specific subclass" },
+            flavorText: { type: Type.STRING, description: "Explanation" },
+            stats: {
+              type: Type.OBJECT,
+              properties: {
+                str: { type: Type.INTEGER },
+                dex: { type: Type.INTEGER },
+                con: { type: Type.INTEGER },
+                int: { type: Type.INTEGER },
+                wis: { type: Type.INTEGER },
+                cha: { type: Type.INTEGER },
+              },
+              required: ["str", "dex", "con", "int", "wis", "cha"],
+            }
           },
-          required: ["className", "subclassName", "flavorText"],
+          required: ["className", "subclassName", "flavorText", "stats"],
         }
       }
     });
@@ -92,16 +118,17 @@ export class GeminiDMService {
     }
   }
 
-  public async generateCharacterSheet(name: string, race: string, className: string, backstory: string, modelId: GeminiModelId): Promise<Partial<Character>> {
+  public async generateCharacterSheet(name: string, race: string, className: string, backstory: string, stats: any, modelId: GeminiModelId): Promise<Partial<Character>> {
     const ai = this.getClient();
     const prompt = `As a D&D 5e character designer, generate a complete starting (Level 1) character sheet for:
     Name: ${name}
     Race: ${race}
     Class: ${className}
     Backstory: ${backstory}
+    Stats: ${JSON.stringify(stats)}
 
     MANDATORY RULES:
-    1. Assign Stats using Standard Array (15, 14, 13, 12, 10, 8) optimized for this build.
+    1. Use the provided stats exactly.
     2. Calculate HP correctly: (Class Hit Die Max + CON modifier). DO NOT GUESS. Use the actual rule.
     3. Calculate AC based on appropriate starting armor for this class.
     4. Provide a rich starting Inventory (weapons, armor, tools, packs).
@@ -118,18 +145,6 @@ export class GeminiDMService {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            stats: {
-              type: Type.OBJECT,
-              properties: {
-                str: { type: Type.INTEGER },
-                dex: { type: Type.INTEGER },
-                con: { type: Type.INTEGER },
-                int: { type: Type.INTEGER },
-                wis: { type: Type.INTEGER },
-                cha: { type: Type.INTEGER },
-              },
-              required: ["str", "dex", "con", "int", "wis", "cha"],
-            },
             hp: { type: Type.INTEGER },
             maxHp: { type: Type.INTEGER },
             ac: { type: Type.INTEGER },
@@ -139,7 +154,7 @@ export class GeminiDMService {
             },
             notes: { type: Type.STRING, description: "Detailed list of Spells, Cantrips, and Class Features" },
           },
-          required: ["stats", "hp", "maxHp", "ac", "inventory", "notes"],
+          required: ["hp", "maxHp", "ac", "inventory", "notes"],
         }
       }
     });

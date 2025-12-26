@@ -34,7 +34,6 @@ const ChatInterface: React.FC<Props> = ({
 
   useEffect(() => {
     if (lastMessageRef.current) {
-      // Scroll to the top of the new message
       lastMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [messages.length, isLoading]);
@@ -49,19 +48,13 @@ const ChatInterface: React.FC<Props> = ({
     }
   };
 
-  // Hard Lock Logic: 
-  // 1. If Solo mode, show all.
-  // 2. If Online mode:
-  //    - Show characters owned by this player.
-  //    - If Host, ALSO show characters with NO owner (NPCs).
   const availableCharacters = party.filter(char => {
     if (!sessionMode || sessionMode === 'solo') return true;
     if (char.ownerId === myPlayerId) return true;
-    if (isHost && !char.ownerId) return true; // Host controls NPCs
+    if (isHost && !char.ownerId) return true; 
     return false;
   });
 
-  // Auto-select valid character if current active one is forbidden
   useEffect(() => {
     if (availableCharacters.length > 0 && !availableCharacters.find(c => c.id === activeCharacterId)) {
       onSetActiveCharacter(availableCharacters[0].id);

@@ -25,6 +25,12 @@ export const CHARACTER_COLORS = [
   '#10b981', // emerald
   '#8b5cf6', // violet
   '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#f97316', // orange
+  '#84cc16', // lime
+  '#d946ef', // fuchsia
+  '#6366f1', // indigo
+  '#14b8a6', // teal
 ];
 
 export const DND_RACES = ["Human", "Elf", "Dwarf", "Halfling", "Dragonborn", "Gnome", "Half-Orc", "Tiefling", "Tabaxi", "Aasimar", "Genasi", "Changeling", "Warforged", "Goliath", "Tortle", "Loxodon"];
@@ -52,56 +58,167 @@ export const createNewCharacter = (index: number): any => ({
 });
 
 export const PREMADE_HEROES = [
+  // ROW 1
   {
-    name: "Sir Valerius Thorne",
-    race: "Human",
-    class: "Paladin (Oath of the Watchers)",
+    name: "Garrick Stonehand",
+    race: "Mountain Dwarf",
+    class: "Fighter (Champion)",
     level: 1,
     hp: 13,
     maxHp: 13,
-    ac: 18,
-    stats: { str: 16, dex: 10, con: 14, int: 8, wis: 10, cha: 15 },
-    inventory: ["Splint Armor", "Shield", "Longsword 'Oathbringer'", "Holy Symbol"],
-    notes: "A disgraced knight from a fallen order dedicated to guarding the rift between worlds. He seeks the entity that destroyed his order.",
-    color: '#f59e0b'
+    ac: 17,
+    stats: { str: 17, dex: 10, con: 16, int: 8, wis: 12, cha: 10 },
+    inventory: ["Chain Mail", "Greataxe", "Handaxe (2)", "Dungeoneer's Pack"],
+    notes: "A stoic warrior seeking to reclaim his clan's lost forge.",
+    color: '#ef4444'
   },
   {
-    name: "Kaelen Shadowstep",
-    race: "Wood Elf",
-    class: "Ranger (Gloom Stalker)",
-    level: 1,
-    hp: 11,
-    maxHp: 11,
-    ac: 16,
-    stats: { str: 10, dex: 17, con: 12, int: 10, wis: 15, cha: 8 },
-    inventory: ["Studded Leather", "Longbow", "Two Shortswords", "Camouflage Cloak"],
-    notes: "A survivor of the 'Silent Purge' of the Amberwood. Kaelen lives in the spaces between shadows. He is cold and pragmatic.",
-    color: '#10b981'
-  },
-  {
-    name: "Zarax the Volatile",
-    race: "Rock Gnome",
-    class: "Wizard (School of Evocation)",
+    name: "Elara Moonwhisper",
+    race: "High Elf",
+    class: "Wizard (Evocation)",
     level: 1,
     hp: 8,
     maxHp: 8,
     ac: 12,
-    stats: { str: 8, dex: 14, con: 12, int: 17, wis: 12, cha: 10 },
-    inventory: ["Spellbook (Singed)", "Component Pouch", "Wand of Pyrotechnics", "Magnifying Glass"],
-    notes: "Expelled from the Gnomish Academy for 'excessive enthusiasm regarding explosive thermodynamics.' Zarax is brilliant and erratic.",
-    color: '#ef4444'
+    stats: { str: 8, dex: 14, con: 14, int: 16, wis: 12, cha: 10 },
+    inventory: ["Spellbook", "Arcane Focus (Orb)", "Scholar's Pack", "Dagger"],
+    notes: "A scholar obsessed with ancient starlight magic.",
+    color: '#3b82f6'
   },
   {
-    name: "Nyx Malphas",
+    name: "Thorn",
     race: "Tiefling",
-    class: "Warlock (The Fiend)",
+    class: "Rogue (Thief)",
     level: 1,
     hp: 10,
     maxHp: 10,
     ac: 14,
-    stats: { str: 8, dex: 14, con: 13, int: 12, wis: 10, cha: 17 },
-    inventory: ["Leather Armor", "Crystal Arcane Focus", "Quarterstaff", "Pact Document"],
-    notes: "Nyx stole a forbidden scroll and made her own deal to escape her family. Her magic manifests as purple flames.",
-    color: '#8b5cf6'
+    stats: { str: 10, dex: 16, con: 14, int: 12, wis: 8, cha: 14 },
+    inventory: ["Leather Armor", "Shortsword", "Shortbow", "Thieves' Tools"],
+    notes: "An urchin who grew up on the streets of a sprawling metropolis.",
+    color: '#a855f7'
+  },
+  
+  // ROW 2
+  {
+    name: "Seraphina Lightbringer",
+    race: "Aasimar",
+    class: "Cleric (Life Domain)",
+    level: 1,
+    hp: 11,
+    maxHp: 11,
+    ac: 18,
+    stats: { str: 14, dex: 10, con: 13, int: 10, wis: 16, cha: 12 },
+    inventory: ["Chain Mail", "Shield", "Mace", "Holy Symbol"],
+    notes: "Guided by a celestial dream to heal the scars of the world.",
+    color: '#f59e0b'
+  },
+  {
+    name: "Korg the Unbroken",
+    race: "Half-Orc",
+    class: "Barbarian (Berserker)",
+    level: 1,
+    hp: 15,
+    maxHp: 15,
+    ac: 14,
+    stats: { str: 16, dex: 12, con: 16, int: 8, wis: 10, cha: 12 },
+    inventory: ["Greataxe", "Handaxe (2)", "Explorer's Pack", "Javelin (4)"],
+    notes: "Exiled from his tribe, he seeks a worthy opponent.",
+    color: '#ea580c'
+  },
+  {
+    name: "Lyra Silvertongue",
+    race: "Half-Elf",
+    class: "Bard (College of Lore)",
+    level: 1,
+    hp: 10,
+    maxHp: 10,
+    ac: 13,
+    stats: { str: 8, dex: 14, con: 14, int: 12, wis: 10, cha: 16 },
+    inventory: ["Studded Leather", "Rapier", "Lute", "Diplomat's Pack"],
+    notes: "A collector of stories who believes the world is a song waiting to be sung.",
+    color: '#d946ef'
+  },
+
+  // ROW 3
+  {
+    name: "Brother Oogway",
+    race: "Tortle",
+    class: "Monk (Way of the Open Hand)",
+    level: 1,
+    hp: 10,
+    maxHp: 10,
+    ac: 17,
+    stats: { str: 10, dex: 16, con: 14, int: 10, wis: 16, cha: 8 },
+    inventory: ["Quarterstaff", "Dart (10)", "Explorer's Pack", "Herbalism Kit"],
+    notes: "A wanderer seeking the perfect cup of tea and inner peace.",
+    color: '#10b981'
+  },
+  {
+    name: "Sylas Greymantle",
+    race: "Human",
+    class: "Ranger (Hunter)",
+    level: 1,
+    hp: 12,
+    maxHp: 12,
+    ac: 15,
+    stats: { str: 12, dex: 16, con: 14, int: 10, wis: 14, cha: 8 },
+    inventory: ["Scale Mail", "Longbow", "Shortsword (2)", "Hunting Trap"],
+    notes: "A bounty hunter who tracks monsters that threaten civilization.",
+    color: '#14b8a6'
+  },
+  {
+    name: "Sirius Blackwood",
+    race: "Human",
+    class: "Paladin (Oath of Vengeance)",
+    level: 1,
+    hp: 12,
+    maxHp: 12,
+    ac: 16,
+    stats: { str: 16, dex: 10, con: 14, int: 8, wis: 10, cha: 16 },
+    inventory: ["Chain Mail", "Greatsword", "Holy Symbol", "Priest's Pack"],
+    notes: "Sworn to hunt down the cult that destroyed his village.",
+    color: '#eab308'
+  },
+
+  // ROW 4
+  {
+    name: "Willow Breeze",
+    race: "Halfling",
+    class: "Druid (Circle of the Land)",
+    level: 1,
+    hp: 10,
+    maxHp: 10,
+    ac: 13,
+    stats: { str: 8, dex: 14, con: 14, int: 12, wis: 16, cha: 10 },
+    inventory: ["Leather Armor", "Scimitar", "Wooden Shield", "Druidic Focus"],
+    notes: "Protector of a small grove, venturing out to stop a spreading blight.",
+    color: '#84cc16'
+  },
+  {
+    name: "Malakor the Cursed",
+    race: "Dragonborn",
+    class: "Warlock (The Hexblade)",
+    level: 1,
+    hp: 11,
+    maxHp: 11,
+    ac: 14,
+    stats: { str: 10, dex: 14, con: 14, int: 10, wis: 10, cha: 16 },
+    inventory: ["Leather Armor", "Longsword (Pact Weapon)", "Arcane Focus", "Scholar's Pack"],
+    notes: "Wields a sentient blade that demands combat.",
+    color: '#6366f1'
+  },
+  {
+    name: "Ignis Flare",
+    race: "Genasi (Fire)",
+    class: "Sorcerer (Draconic Bloodline)",
+    level: 1,
+    hp: 9,
+    maxHp: 9,
+    ac: 15,
+    stats: { str: 8, dex: 14, con: 14, int: 10, wis: 12, cha: 16 },
+    inventory: ["Dagger (2)", "Arcane Focus (Wand)", "Explorer's Pack"],
+    notes: "Born during a volcanic eruption, their magic is volatile and bright.",
+    color: '#f97316'
   }
 ];
