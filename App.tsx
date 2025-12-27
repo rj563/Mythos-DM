@@ -74,8 +74,9 @@ const App: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   // API Key State
-  const [hasApiKey, setHasApiKey] = useState<boolean>(!!process.env.API_KEY);
+  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
   const [canSelectKey, setCanSelectKey] = useState<boolean>(false);
+  const [manualKeyInput, setManualKeyInput] = useState('');
   
   // Tooltip State
   const [hoveredHero, setHoveredHero] = useState<any | null>(null);
@@ -111,6 +112,7 @@ const App: React.FC = () => {
     const checkKey = async () => {
       // If Env var is present, we are good
       if (process.env.API_KEY) {
+        dmService.setApiKey(process.env.API_KEY);
         setHasApiKey(true);
       }
 
@@ -137,6 +139,13 @@ const App: React.FC = () => {
         }
         console.error("API Key selection failed", e);
       }
+    }
+  };
+
+  const handleManualKeySubmit = () => {
+    if (manualKeyInput.length > 10) {
+      dmService.setApiKey(manualKeyInput);
+      setHasApiKey(true);
     }
   };
 
@@ -341,7 +350,7 @@ const App: React.FC = () => {
         showLevelUp: !!levelUpMatch || prev.showLevelUp
       }));
     } catch (err: any) { 
-      if (err.message === "API_KEY_EXPIRED") {
+      if (err.message === "API_KEY_EXPIRED" || err.message?.includes("API_KEY")) {
         setHasApiKey(false);
         setError("Your API Key has expired. Please reconnect.");
       } else {
@@ -361,7 +370,7 @@ const App: React.FC = () => {
         setForgeStep(4);
       }
     } catch (e: any) {
-      if (e.message?.includes("API_KEY")) {
+      if (e.message?.includes("API_KEY") || e.message?.includes("API_KEY_MISSING")) {
          setHasApiKey(false);
          setError("API Key Required.");
       } else {
@@ -465,12 +474,27 @@ const App: React.FC = () => {
                <div className="bg-slate-900/80 p-8 rounded-3xl border border-rose-900/50 text-left space-y-4">
                   <p className="text-slate-300 font-serif italic text-lg text-center">"The magical ley lines are disconnected. The Dungeon Master cannot speak."</p>
                   <div className="h-px bg-slate-800 w-full my-4"/>
-                  <h4 className="text-rose-400 font-bold uppercase tracking-widest text-xs">Configuration Required</h4>
-                  <p className="text-slate-400 text-sm">To host Mythos DM, you must configure the environment variables.</p>
-                  <div className="bg-black/50 p-4 rounded-xl font-mono text-xs text-emerald-400 border border-slate-800">
-                    API_KEY=your_gemini_api_key
+                  
+                  <h4 className="text-amber-400 font-bold uppercase tracking-widest text-xs">Enter Your Key</h4>
+                  <p className="text-slate-400 text-sm">To play, you must provide your own Google Gemini API Key.</p>
+                  <div className="flex gap-2">
+                    <input 
+                      type="password" 
+                      placeholder="AIzaSy..." 
+                      className="flex-1 bg-black/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-amber-500 outline-none font-mono text-sm"
+                      value={manualKeyInput}
+                      onChange={(e) => setManualKeyInput(e.target.value)}
+                    />
+                    <button 
+                       onClick={handleManualKeySubmit}
+                       className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold uppercase text-xs"
+                    >
+                      Connect
+                    </button>
                   </div>
-                  <p className="text-slate-500 text-xs">If using Netlify: Site Settings {'>'} Environment Variables.</p>
+                  <p className="text-slate-500 text-xs mt-2">
+                     Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-sky-400 hover:underline">aistudio.google.com</a>
+                  </p>
                </div>
             )}
          </div>

@@ -22,51 +22,43 @@ Mythos DM is an immersive, AI-powered Dungeon Master designed for Dungeons & Dra
 
 ## 🚀 Installation & Setup
 
-### 1. Prerequisites
-*   [Node.js](https://nodejs.org/) (v18 or higher recommended)
-*   An API Key from [Google AI Studio](https://aistudio.google.com/)
+### 1. Project IDX (Recommended)
+This project is optimized for [Google Project IDX](https://idx.dev/).
+1.  Open the repo in Project IDX.
+2.  The environment will automatically install dependencies (`npm install`).
+3.  The preview server will start automatically.
 
-### 2. Clone and Install
+### 2. Manual Setup
+*   [Node.js](https://nodejs.org/) (v18 or higher recommended)
+
 ```bash
 git clone https://github.com/yourusername/mythos-dm.git
 cd mythos-dm
 npm install
-```
-
-### 3. Local Development
-Create a `.env` file in the root:
-```env
-API_KEY=your_gemini_api_key_here
-```
-Run the app:
-```bash
 npm run dev
 ```
 
 ---
 
-## ☁️ Deployment
+## 🔑 API Key Configuration
 
-### Option A: Firebase Hosting (Recommended)
+To play, users must provide their own **Google Gemini API Key**.
+1.  Get a key at [Google AI Studio](https://aistudio.google.com/app/apikey).
+2.  Launch the app.
+3.  Enter the key in the "Arcane Source Missing" screen.
+
+---
+
+## ☁️ Deployment (Firebase Hosting)
 
 1.  Install Firebase CLI: `npm install -g firebase-tools`
 2.  Login: `firebase login`
 3.  Initialize: `firebase init hosting` (Choose "Use existing project" or "Create new", use `dist` as public directory, "Yes" to single-page app).
-4.  **Important**: To bake your API Key into the hosted app:
-    *   Create a `.env` file locally with your key.
-    *   Run build: `npm run build`
-    *   Deploy: `firebase deploy`
-
-### Option B: Netlify
-
-1.  Connect your repo to Netlify.
-2.  Build settings:
-    *   Command: `npm run build`
-    *   Publish directory: `dist`
-3.  **Environment Variables**:
-    *   Go to Site Settings > Environment Variables.
-    *   Add `API_KEY` with your value.
-    *   Trigger a new deploy.
+4.  Build and Deploy:
+    ```bash
+    npm run build
+    firebase deploy
+    ```
 
 ---
 

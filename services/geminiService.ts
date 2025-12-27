@@ -18,9 +18,17 @@ export interface ClassSuggestion {
 
 export class GeminiDMService {
   private chatSession: Chat | null = null;
+  private apiKey: string = process.env.API_KEY || '';
+
+  public setApiKey(key: string) {
+    this.apiKey = key;
+  }
 
   private getClient(): GoogleGenAI {
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    if (!this.apiKey) {
+      throw new Error("API_KEY_MISSING");
+    }
+    return new GoogleGenAI({ apiKey: this.apiKey });
   }
 
   public isActive(): boolean {
@@ -246,7 +254,7 @@ Use metric units.`;
         onComplete(finalResponse.usageMetadata.totalTokenCount);
       }
     } catch (error: any) {
-      if (error.message?.includes("Requested entity was not found")) {
+      if (error.message?.includes("API_KEY") || error.message?.includes("Requested entity was not found")) {
         throw new Error("API_KEY_EXPIRED");
       }
       throw error;
