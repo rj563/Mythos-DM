@@ -4,7 +4,7 @@ import { generateRoomCode, PREMADE_HEROES, CHARACTER_COLORS, DND_RACES, RACE_DET
 import { dmService, ClassSuggestion } from './services/geminiService';
 import ChatInterface from './components/ChatInterface';
 import CharacterSheet from './components/CharacterSheet';
-import { Sword, AlertCircle, Plus, Users, Share2, Globe, User, Users2, Flame, Tent, Battery, Key, ShieldCheck, Zap, Brain, Sparkles, Check, X, ShieldAlert, ChevronRight, RefreshCw, Wand2, Shield, Scroll, Loader2, Heart, Briefcase, Wand, Save, BookMarked, Download, Upload, History, Trash2, Layout, BookOpen, Crown, Menu, LogOut, Settings, ArrowLeft, Search } from 'lucide-react';
+import { Sword, AlertCircle, Plus, Users, Share2, Globe, User, Users2, Flame, Tent, Battery, Key, ShieldCheck, Zap, Brain, Sparkles, Check, X, ShieldAlert, ChevronRight, RefreshCw, Wand2, Shield, Scroll, Loader2, Heart, Briefcase, Wand, Save, BookMarked, Download, Upload, History, Trash2, Layout, BookOpen, Crown, Menu, LogOut, Settings, ArrowLeft, Search, Lock } from 'lucide-react';
 import Gun from 'gun';
 
 const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
@@ -66,13 +66,16 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [hasKey, setHasKey] = useState(false);
   const [showQuickStats, setShowQuickStats] = useState(false);
   const [levelUpOptions, setLevelUpOptions] = useState<LevelUpChoice[]>([]);
   const [isLeveling, setIsLeveling] = useState(false);
   const [activeTabId, setActiveTabId] = useState<string>('');
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // API Key State
+  const [hasApiKey, setHasApiKey] = useState<boolean>(!!process.env.API_KEY);
+  const [canSelectKey, setCanSelectKey] = useState<boolean>(false);
   
   // Tooltip State
   const [hoveredHero, setHoveredHero] = useState<any | null>(null);
@@ -103,15 +106,39 @@ const App: React.FC = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  // Check API Key on mount
   useEffect(() => {
     const checkKey = async () => {
+      // If Env var is present, we are good
+      if (process.env.API_KEY) {
+        setHasApiKey(true);
+      }
+
+      // Check for dynamic key support (Google AI Studio / IDX)
       if ((window as any).aistudio) {
+        setCanSelectKey(true);
         const selected = await (window as any).aistudio.hasSelectedApiKey();
-        setHasKey(selected);
+        if (selected) {
+           setHasApiKey(true);
+        }
       }
     };
     checkKey();
   }, []);
+
+  const handleConnectApiKey = async () => {
+    if ((window as any).aistudio) {
+      try {
+        await (window as any).aistudio.openSelectKey();
+        setHasApiKey(true);
+      } catch (e: any) {
+        if (e.message?.includes("Requested entity was not found")) {
+           setHasApiKey(false);
+        }
+        console.error("API Key selection failed", e);
+      }
+    }
+  };
 
   // Set initial tab
   useEffect(() => {
@@ -214,6 +241,10 @@ const App: React.FC = () => {
   };
 
   const handleStartAdventure = async () => {
+    if (!hasApiKey) {
+      setError("Arcane Source Missing. Please connect API Key.");
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -232,7 +263,14 @@ const App: React.FC = () => {
         totalTokensUsed: tokens ? prev.totalTokensUsed + tokens : prev.totalTokensUsed,
         sessionId: sessionId
       }));
-    } catch (err: any) { setError("The DM could not be summoned."); } finally { setIsLoading(false); }
+    } catch (err: any) { 
+      if (err.message === "API_KEY_EXPIRED") {
+        setHasApiKey(false);
+        setError("Your API Key has expired or was revoked. Please reconnect.");
+      } else {
+        setError("The DM could not be summoned."); 
+      }
+    } finally { setIsLoading(false); }
   };
 
   const handleJoinSession = () => {
@@ -302,7 +340,14 @@ const App: React.FC = () => {
         }],
         showLevelUp: !!levelUpMatch || prev.showLevelUp
       }));
-    } catch (err: any) { setError("DM connection lost."); } finally { setIsLoading(false); }
+    } catch (err: any) { 
+      if (err.message === "API_KEY_EXPIRED") {
+        setHasApiKey(false);
+        setError("Your API Key has expired. Please reconnect.");
+      } else {
+        setError("DM connection lost."); 
+      }
+    } finally { setIsLoading(false); }
   };
 
   const handleSuggestClasses = async () => {
@@ -315,8 +360,13 @@ const App: React.FC = () => {
         setForgeData(prev => ({...prev, stats: suggestion.stats}));
         setForgeStep(4);
       }
-    } catch (e) {
-      setError("The Oracle is silent. Try again later.");
+    } catch (e: any) {
+      if (e.message?.includes("API_KEY")) {
+         setHasApiKey(false);
+         setError("API Key Required.");
+      } else {
+         setError("The Oracle is silent. Try again later.");
+      }
     } finally {
       setIsSuggesting(false);
     }
@@ -394,6 +444,39 @@ const App: React.FC = () => {
   };
 
   const renderPhase = () => {
+    // Phase 1: Check API Key
+    if (!hasApiKey) {
+       return (
+         <div className="max-w-2xl w-full animate-in zoom-in duration-500 pt-32 text-center space-y-8">
+            <div className="mx-auto w-24 h-24 bg-rose-950/50 rounded-full flex items-center justify-center border-2 border-rose-500/50 shadow-2xl shadow-rose-900/50 mb-8">
+               <Lock className="w-10 h-10 text-rose-500" />
+            </div>
+            <h2 className="fantasy-font text-6xl text-rose-500">Arcane Source Missing</h2>
+            
+            {canSelectKey ? (
+               <div className="space-y-6">
+                 <p className="text-slate-400 text-lg">Your Neural Link to the Google AI network is inactive.</p>
+                 <button onClick={handleConnectApiKey} className="px-8 py-4 bg-white text-slate-900 rounded-full font-bold text-lg hover:scale-105 transition-transform flex items-center justify-center gap-3 mx-auto shadow-xl">
+                   <img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" className="w-6 h-6" alt="Gemini" />
+                   Connect with Google
+                 </button>
+               </div>
+            ) : (
+               <div className="bg-slate-900/80 p-8 rounded-3xl border border-rose-900/50 text-left space-y-4">
+                  <p className="text-slate-300 font-serif italic text-lg text-center">"The magical ley lines are disconnected. The Dungeon Master cannot speak."</p>
+                  <div className="h-px bg-slate-800 w-full my-4"/>
+                  <h4 className="text-rose-400 font-bold uppercase tracking-widest text-xs">Configuration Required</h4>
+                  <p className="text-slate-400 text-sm">To host Mythos DM, you must configure the environment variables.</p>
+                  <div className="bg-black/50 p-4 rounded-xl font-mono text-xs text-emerald-400 border border-slate-800">
+                    API_KEY=your_gemini_api_key
+                  </div>
+                  <p className="text-slate-500 text-xs">If using Netlify: Site Settings {'>'} Environment Variables.</p>
+               </div>
+            )}
+         </div>
+       );
+    }
+
     switch (gameState.phase) {
       case 'MODE_SELECT':
         return (
@@ -755,7 +838,7 @@ const App: React.FC = () => {
           <h1 className="fantasy-font text-3xl font-bold tracking-widest text-slate-100 uppercase">Mythos DM</h1>
         </div>
         <div className="flex gap-4 items-center">
-          {gameState.phase === 'ADVENTURE' && (
+          {hasApiKey && gameState.phase === 'ADVENTURE' && (
             <div className="flex gap-2 relative">
               {saveStatus && (
                 <div className="absolute -bottom-10 right-0 text-emerald-400 text-[10px] font-bold uppercase tracking-[0.2em] bg-emerald-950/80 px-4 py-1.5 rounded-full border border-emerald-500/30 animate-in fade-in slide-in-from-top-2">
