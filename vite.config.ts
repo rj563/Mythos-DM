@@ -16,5 +16,19 @@ export default defineConfig(({ mode }) => {
       // Polyfill for Gun.js which expects 'global' to exist
       'global': 'window',
     },
+    build: {
+      chunkSizeWarningLimit: 1000, // Increased limit to 1000kB to reduce noise for large libs
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom'],
+            'genai': ['@google/genai'],
+            'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+            'ui-vendor': ['lucide-react', 'react-markdown'],
+            'gun': ['gun']
+          }
+        }
+      }
+    }
   };
 });
