@@ -4,37 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mythos DM</title>
-    <!-- Keeping Tailwind CDN for simplicity in this specific setup to avoid extra CSS config, 
-         though in a large prod app you might install it via npm -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: #0f172a;
-        color: #f1f5f9;
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              fantasy: ['MedievalSharp', 'cursive'],
+            },
+            colors: {
+              slate: {
+                850: '#1e293b',
+                950: '#020617',
+              }
+            }
+          }
+        }
       }
-      .fantasy-font {
-        font-family: 'MedievalSharp', cursive;
-      }
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #1e293b;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #475569;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #64748b;
-      }
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-    </style>
-  <script type="importmap">
+    </script>
+    <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
@@ -54,8 +44,8 @@
 }
 </script>
 </head>
-  <body>
-    <div id="root"></div>
+  <body class="bg-slate-950 text-slate-50 overflow-hidden h-screen w-screen">
+    <div id="root" class="h-full w-full"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

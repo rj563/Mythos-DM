@@ -1,20 +1,6 @@
 import { GoogleGenAI, GenerateContentResponse, Chat, Type } from "@google/genai";
 import { DM_SYSTEM_INSTRUCTION } from "../constants";
-import { Message, GeminiModelId, Character, LevelUpChoice } from "../types";
-
-export interface ClassSuggestion {
-  className: string;
-  subclassName: string;
-  flavorText: string;
-  stats: {
-    str: number;
-    dex: number;
-    con: number;
-    int: number;
-    wis: number;
-    cha: number;
-  };
-}
+import { Message, GeminiModelId, Character, LevelUpChoice, ClassSuggestion } from "../types";
 
 export class GeminiDMService {
   private chatSession: Chat | null = null;

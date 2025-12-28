@@ -1,4 +1,5 @@
 
+
 export interface Stats {
   str: number;
   dex: number;
@@ -6,6 +7,13 @@ export interface Stats {
   int: number;
   wis: number;
   cha: number;
+}
+
+export interface ClassSuggestion {
+  className: string;
+  subclassName: string;
+  flavorText: string;
+  stats: Stats;
 }
 
 export interface Character {
