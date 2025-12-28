@@ -175,8 +175,16 @@ export class GeminiDMService {
     }
   }
 
-  public async startAdventure(party: Character[], history: Message[], modelId: GeminiModelId, tone: 'action' | 'mystery'): Promise<{ text: string, tokens?: number }> {
+  public async startAdventure(
+    party: Character[], 
+    history: Message[], 
+    modelId: GeminiModelId, 
+    tone: 'action' | 'mystery',
+    difficulty: 'story' | 'standard' | 'deadly'
+  ): Promise<{ text: string, tokens?: number }> {
     const ai = this.getClient();
+
+    const avgLevel = Math.round(party.reduce((sum, c) => sum + c.level, 0) / party.length) || 1;
 
     const partyContext = party.map(char => {
       return `Character: ${char.name}
@@ -195,10 +203,29 @@ Features/Spells/Backstory: ${char.notes}`;
       startInstruction = "Start the adventure in a PEACEFUL, safe environment (a tavern, a library, a quiet campfire, or a city festival). There are NO immediate threats. Describe the atmosphere and the surroundings vividly. Allow the players to roleplay, talk amongst themselves, or explore freely. Do not trigger combat or danger until the players actively search for it or initiate a risky action. Let them take the initiative.";
     }
 
+    let scalingInstruction = "";
+    if (difficulty === 'story') {
+      scalingInstruction = `ENCOUNTER BALANCING: STORY MODE (Easy)
+      - Enemies should have -2 to hit and -25% HP compared to standard stat blocks.
+      - Focus on cinematic moments over tactical lethality.
+      - Avoid focus-firing on a single PC.`;
+    } else if (difficulty === 'deadly') {
+      scalingInstruction = `ENCOUNTER BALANCING: DEADLY MODE (Hard)
+      - Enemies are RUTHLESS. They use cover, flanking, and focus fire on weak targets (healers/mages).
+      - Boost enemy stats: +1 to AC, +1 to Hit, and +20% HP.
+      - Encounter Difficulty targets: Hard to Deadly threshold for Average Party Level ${avgLevel}.`;
+    } else {
+      scalingInstruction = `ENCOUNTER BALANCING: STANDARD (Normal)
+      - Use standard 5e stat blocks appropriate for Average Party Level ${avgLevel}.
+      - Play enemies intelligently but fairly.`;
+    }
+
     const finalSystemInstruction = `${DM_SYSTEM_INSTRUCTION}
 
-CURRENT PARTY INFORMATION:
+CURRENT PARTY INFORMATION (Average Level: ${avgLevel}):
 ${partyContext}
+
+${scalingInstruction}
 
 The players have completed character creation. Begin the adventure immediately.
 ${startInstruction}
@@ -220,7 +247,7 @@ Use metric units.`;
     });
 
     if (history.length === 0) {
-      const initialPrompt = `Greetings, Dungeon Master. Our party is assembled. We want a ${tone} start. Please introduce yourself and set the starting scene for us.`;
+      const initialPrompt = `Greetings, Dungeon Master. Our party is assembled (Avg Level ${avgLevel}). We want a ${tone} start with ${difficulty} difficulty. Please introduce yourself and set the starting scene for us.`;
       const response = await this.chatSession.sendMessage({ message: initialPrompt });
       return { 
         text: response.text || "The DM remains silent...",

@@ -1,14 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GameState, GameState as GameStateType, Message, Character, DiceRoll, SessionMode, GeminiModelId, AppPhase, PlayerStatus, SavedSaga, LevelUpChoice } from './types';
+import { GameState, GameState as GameStateType, Message, Character, DiceRoll, SessionMode, GeminiModelId, AppPhase, PlayerStatus, SavedSaga, LevelUpChoice, UserProfile } from './types';
 import { generateRoomCode, PREMADE_HEROES, CHARACTER_COLORS, DND_RACES, RACE_DETAILS } from './constants';
 import { dmService, ClassSuggestion } from './services/geminiService';
 import ChatInterface from './components/ChatInterface';
 import CharacterSheet from './components/CharacterSheet';
-import { Sword, AlertCircle, Plus, Users, Share2, Globe, User, Users2, Flame, Tent, Battery, Key, ShieldCheck, Zap, Brain, Sparkles, Check, X, ShieldAlert, ChevronRight, RefreshCw, Wand2, Shield, Scroll, Loader2, Heart, Briefcase, Wand, Save, BookMarked, Download, Upload, History, Trash2, Layout, BookOpen, Crown, Menu, LogOut, Settings, ArrowLeft, Search, Lock } from 'lucide-react';
+import LoginScreen from './components/LoginScreen';
+import ShopModal from './components/ShopModal';
+import { Sword, AlertCircle, Plus, Users, Share2, Globe, User, Users2, Flame, Tent, Battery, Key, ShieldCheck, Zap, Brain, Sparkles, Check, X, ShieldAlert, ChevronRight, RefreshCw, Wand2, Shield, Scroll, Loader2, Heart, Briefcase, Wand, Save, BookMarked, Download, Upload, History, Trash2, Layout, BookOpen, Crown, Menu, LogOut, Settings, ArrowLeft, Search, Lock, Feather, Skull, Gem } from 'lucide-react';
 import Gun from 'gun';
+
+// In a real implementation, you would import these from firebase.ts
+// import { auth, db } from './firebase';
+// import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+// import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
 const MAX_SAGA_TOKENS = 1000000; 
+
+// Markup Multiplier: 30% Profit Margin
+const TOKEN_MARKUP = 1.3;
 
 const MODEL_OPTIONS: { id: GeminiModelId, name: string, icon: any, desc: string, sub: string, color: string }[] = [
   { id: 'gemini-3-pro-preview', name: 'The Arch-Mage', icon: Brain, desc: 'Deepest reasoning. Best for complex logic.', sub: 'Model: Gemini 3 Pro (Higher Cost)', color: 'amber' },
@@ -39,6 +49,12 @@ const FloatingTooltip = ({ title, meta, desc, stats, pos }: any) => (
 
 const App: React.FC = () => {
   const myPlayerId = useRef(crypto.randomUUID());
+  
+  // User State
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isShopOpen, setIsShopOpen] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState<boolean>(true); // Default to true since we handle tokens now
+
   const [gameState, setGameState] = useState<GameState>(() => {
     const saved = localStorage.getItem('mythos-dm-state-current');
     if (saved) {
@@ -51,7 +67,7 @@ const App: React.FC = () => {
       isStarted: false,
       totalTokensUsed: 0,
       modelId: 'gemini-3-pro-preview',
-      phase: 'MODE_SELECT',
+      phase: 'LOGIN', // Start at Login now
       players: {},
       isHost: true
     };
@@ -73,17 +89,13 @@ const App: React.FC = () => {
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  // API Key State
-  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
-  const [canSelectKey, setCanSelectKey] = useState<boolean>(false);
-  const [manualKeyInput, setManualKeyInput] = useState('');
-  
   // Tooltip State
   const [hoveredHero, setHoveredHero] = useState<any | null>(null);
   const [hoveredRace, setHoveredRace] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const [adventureTone, setAdventureTone] = useState<'action' | 'mystery'>('action');
+  const [difficulty, setDifficulty] = useState<'story' | 'standard' | 'deadly'>('standard');
   
   const isRemoteChange = useRef(false);
 
@@ -107,46 +119,42 @@ const App: React.FC = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Check API Key on mount
+  // Initialize DM Service
   useEffect(() => {
-    const checkKey = async () => {
-      // If Env var is present, we are good
-      if (process.env.API_KEY) {
-        dmService.setApiKey(process.env.API_KEY);
-        setHasApiKey(true);
-      }
-
-      // Check for dynamic key support (Google AI Studio / IDX)
-      if ((window as any).aistudio) {
-        setCanSelectKey(true);
-        const selected = await (window as any).aistudio.hasSelectedApiKey();
-        if (selected) {
-           setHasApiKey(true);
-        }
-      }
-    };
-    checkKey();
+    if (process.env.API_KEY) {
+      dmService.setApiKey(process.env.API_KEY);
+    }
   }, []);
 
-  const handleConnectApiKey = async () => {
-    if ((window as any).aistudio) {
-      try {
-        await (window as any).aistudio.openSelectKey();
-        setHasApiKey(true);
-      } catch (e: any) {
-        if (e.message?.includes("Requested entity was not found")) {
-           setHasApiKey(false);
-        }
-        console.error("API Key selection failed", e);
-      }
-    }
+  const handleLogin = async () => {
+    // MOCK LOGIN FOR UI DEMO - Replace with Firebase Auth logic
+    setUser({
+      uid: "mock-user-123",
+      displayName: "Adventurer",
+      email: "hero@example.com",
+      photoURL: null,
+      aetherBalance: 50000 // Starting balance
+    });
+    setGameState(prev => ({ ...prev, phase: 'MODE_SELECT' }));
   };
 
-  const handleManualKeySubmit = () => {
-    if (manualKeyInput.length > 10) {
-      dmService.setApiKey(manualKeyInput);
-      setHasApiKey(true);
-    }
+  const handleGuestLogin = () => {
+     setUser({
+      uid: "guest-" + crypto.randomUUID(),
+      displayName: "Guest",
+      email: null,
+      photoURL: null,
+      aetherBalance: 10000 // Small starting balance
+    });
+    setGameState(prev => ({ ...prev, phase: 'MODE_SELECT' }));
+  }
+
+  // Cost Logic: Deduct tokens with 30% markup
+  const deductTokens = (rawTokens: number) => {
+    if (!user) return;
+    const cost = Math.ceil(rawTokens * TOKEN_MARKUP);
+    setUser(prev => prev ? ({ ...prev, aetherBalance: prev.aetherBalance - cost }) : null);
+    // In real app: await updateDoc(doc(db, "users", user.uid), { aetherBalance: increment(-cost) });
   };
 
   // Set initial tab
@@ -160,7 +168,7 @@ const App: React.FC = () => {
     const recover = async () => {
       if (gameState.phase === 'ADVENTURE' && gameState.isStarted && !dmService.isActive()) {
         try {
-          await dmService.startAdventure(gameState.party, gameState.history, gameState.modelId, 'action'); // Tone handled during init
+          await dmService.startAdventure(gameState.party, gameState.history, gameState.modelId, 'action', 'standard'); // Default to standard on recovery
         } catch (e) {
           setError("Failed to reconnect to the Dungeon Master.");
         }
@@ -181,7 +189,7 @@ const App: React.FC = () => {
           setGameState(prev => ({
             ...prev,
             ...remoteState,
-            phase: prev.phase === 'MODE_SELECT' || prev.phase === 'LOBBY' ? remoteState.phase : prev.phase
+            phase: prev.phase === 'LOGIN' || prev.phase === 'MODE_SELECT' || prev.phase === 'LOBBY' ? remoteState.phase : prev.phase
           }));
           setTimeout(() => { isRemoteChange.current = false; }, 100);
         } catch (e) { console.error("Sync error", e); }
@@ -250,18 +258,22 @@ const App: React.FC = () => {
   };
 
   const handleStartAdventure = async () => {
-    if (!hasApiKey) {
-      setError("Arcane Source Missing. Please connect API Key.");
-      return;
+    if (user && user.aetherBalance <= 0) {
+       setError("Insufficient Aether. Please visit the Goblin Market.");
+       setIsShopOpen(true);
+       return;
     }
+
     setIsLoading(true);
     setError(null);
     try {
       const finalParty = gameState.party;
       const sessionId = gameState.sessionMode === 'online' ? (gameState.sessionId || generateRoomCode()) : undefined;
       
-      const { text, tokens } = await dmService.startAdventure(finalParty, gameState.history, gameState.modelId, adventureTone);
+      const { text, tokens } = await dmService.startAdventure(finalParty, gameState.history, gameState.modelId, adventureTone, difficulty);
       
+      if (tokens) deductTokens(tokens);
+
       setGameState(prev => ({
         ...prev, 
         party: finalParty,
@@ -294,13 +306,22 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (text: string, charId: string) => {
+    if (user && user.aetherBalance <= 0) {
+       setError("Insufficient Aether.");
+       setIsShopOpen(true);
+       return;
+    }
+
     const char = gameState.party.find(c => c.id === charId);
     const enrichedText = `**${char?.name || 'Adventurer'}**: ${text}`;
     setGameState(prev => ({ ...prev, history: [...prev.history, { role: 'user', text: enrichedText, senderId: charId, senderName: char?.name, timestamp: Date.now() }] }));
     setIsLoading(true);
     try {
       let fullText = "";
-      await dmService.streamMessage(enrichedText, (chunk) => { fullText += chunk; }, (tokens) => setGameState(prev => ({ ...prev, totalTokensUsed: tokens })));
+      await dmService.streamMessage(enrichedText, (chunk) => { fullText += chunk; }, (tokens) => {
+        setGameState(prev => ({ ...prev, totalTokensUsed: tokens }));
+        deductTokens(tokens);
+      });
       
       // Robust Regex for multi-line JSON with loose spacing. Matches {{UPDATE_SHEET: ... }} across newlines
       const sheetUpdateRegex = /\{\{\s*UPDATE_SHEET\s*:([\s\S]+?)\}\}/g;
@@ -309,7 +330,11 @@ const App: React.FC = () => {
       
       while ((match = sheetUpdateRegex.exec(fullText)) !== null) {
         try {
-          const jsonStr = match[1].trim();
+          let jsonStr = match[1].trim();
+          // Sanitize: Remove markdown code blocks if the model ignored instructions and wrapped JSON in ```json ... ```
+          if (jsonStr.startsWith('```')) {
+             jsonStr = jsonStr.replace(/^```(?:json)?/, '').replace(/```$/, '');
+          }
           const updates = JSON.parse(jsonStr);
           sheetUpdates.push(updates);
         } catch (e) { console.error("Sheet update parse error", e); }
@@ -453,55 +478,10 @@ const App: React.FC = () => {
   };
 
   const renderPhase = () => {
-    // Phase 1: Check API Key
-    if (!hasApiKey) {
-       return (
-         <div className="max-w-2xl w-full animate-in zoom-in duration-500 pt-32 text-center space-y-8">
-            <div className="mx-auto w-24 h-24 bg-rose-950/50 rounded-full flex items-center justify-center border-2 border-rose-500/50 shadow-2xl shadow-rose-900/50 mb-8">
-               <Lock className="w-10 h-10 text-rose-500" />
-            </div>
-            <h2 className="fantasy-font text-6xl text-rose-500">Arcane Source Missing</h2>
-            
-            {canSelectKey ? (
-               <div className="space-y-6">
-                 <p className="text-slate-400 text-lg">Your Neural Link to the Google AI network is inactive.</p>
-                 <button onClick={handleConnectApiKey} className="px-8 py-4 bg-white text-slate-900 rounded-full font-bold text-lg hover:scale-105 transition-transform flex items-center justify-center gap-3 mx-auto shadow-xl">
-                   <img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" className="w-6 h-6" alt="Gemini" />
-                   Connect with Google
-                 </button>
-               </div>
-            ) : (
-               <div className="bg-slate-900/80 p-8 rounded-3xl border border-rose-900/50 text-left space-y-4">
-                  <p className="text-slate-300 font-serif italic text-lg text-center">"The magical ley lines are disconnected. The Dungeon Master cannot speak."</p>
-                  <div className="h-px bg-slate-800 w-full my-4"/>
-                  
-                  <h4 className="text-amber-400 font-bold uppercase tracking-widest text-xs">Enter Your Key</h4>
-                  <p className="text-slate-400 text-sm">To play, you must provide your own Google Gemini API Key.</p>
-                  <div className="flex gap-2">
-                    <input 
-                      type="password" 
-                      placeholder="AIzaSy..." 
-                      className="flex-1 bg-black/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-amber-500 outline-none font-mono text-sm"
-                      value={manualKeyInput}
-                      onChange={(e) => setManualKeyInput(e.target.value)}
-                    />
-                    <button 
-                       onClick={handleManualKeySubmit}
-                       className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold uppercase text-xs"
-                    >
-                      Connect
-                    </button>
-                  </div>
-                  <p className="text-slate-500 text-xs mt-2">
-                     Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-sky-400 hover:underline">aistudio.google.com</a>
-                  </p>
-               </div>
-            )}
-         </div>
-       );
-    }
-
     switch (gameState.phase) {
+      case 'LOGIN':
+         return <LoginScreen onLogin={handleLogin} onGuest={handleGuestLogin} />
+
       case 'MODE_SELECT':
         return (
           <div className="max-w-6xl w-full grid grid-cols-1 gap-16 animate-in fade-in duration-700 pt-28 pb-12">
@@ -770,35 +750,58 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="md:col-span-2 space-y-8">
-                   <div>
-                     <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-3 flex items-center gap-2"><Briefcase size={12}/> Equipment</h4>
-                     <div className="flex flex-wrap gap-2">{forgeData.inventory?.map((it, i) => <span key={i} className="px-3 py-1 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300">• {it}</span>)}</div>
-                   </div>
-                   <div>
-                     <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-3 flex items-center gap-2"><Sparkles size={12}/> Features & Spells</h4>
-                     <p className="p-6 bg-slate-950 border border-slate-800 rounded-3xl text-sm text-slate-400 italic whitespace-pre-wrap">{forgeData.notes}</p>
-                   </div>
-                   
-                   <div className="pt-6 border-t border-slate-800 space-y-4">
-                      <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Select Starting Tone</p>
-                      <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => setAdventureTone('action')} className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${adventureTone === 'action' ? 'bg-amber-600/20 border-amber-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'}`}>
-                           <Sword size={20} className={adventureTone === 'action' ? 'text-amber-500' : 'text-slate-600'} />
-                           <div className="text-left">
-                              <div className="font-bold text-sm uppercase">Immediate Action</div>
-                              <div className="text-[10px] opacity-70">Combat, chases, danger start now.</div>
-                           </div>
-                        </button>
-                        <button onClick={() => setAdventureTone('mystery')} className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${adventureTone === 'mystery' ? 'bg-sky-600/20 border-sky-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'}`}>
-                           <Search size={20} className={adventureTone === 'mystery' ? 'text-sky-500' : 'text-slate-600'} />
-                           <div className="text-left">
-                              <div className="font-bold text-sm uppercase">Mystery & Search</div>
-                              <div className="text-[10px] opacity-70">Peaceful start. Explore & investigate.</div>
-                           </div>
-                        </button>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="pt-6 border-t border-slate-800 space-y-4">
+                          <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Adventure Tone</p>
+                          <div className="grid grid-cols-1 gap-2">
+                            <button onClick={() => setAdventureTone('action')} className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${adventureTone === 'action' ? 'bg-amber-600/20 border-amber-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'}`}>
+                                <Sword size={16} className={adventureTone === 'action' ? 'text-amber-500' : 'text-slate-600'} />
+                                <div className="text-left">
+                                  <div className="font-bold text-xs uppercase">Action</div>
+                                </div>
+                            </button>
+                            <button onClick={() => setAdventureTone('mystery')} className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${adventureTone === 'mystery' ? 'bg-sky-600/20 border-sky-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'}`}>
+                                <Search size={16} className={adventureTone === 'mystery' ? 'text-sky-500' : 'text-slate-600'} />
+                                <div className="text-left">
+                                  <div className="font-bold text-xs uppercase">Mystery</div>
+                                </div>
+                            </button>
+                          </div>
+                      </div>
+                      
+                      <div className="pt-6 border-t border-slate-800 space-y-4">
+                          <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Challenge Level</p>
+                          <div className="grid grid-cols-1 gap-2">
+                            <button onClick={() => setDifficulty('story')} className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${difficulty === 'story' ? 'bg-emerald-600/20 border-emerald-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'}`}>
+                                <Feather size={16} className={difficulty === 'story' ? 'text-emerald-500' : 'text-slate-600'} />
+                                <div className="text-left">
+                                  <div className="font-bold text-xs uppercase">Story Mode</div>
+                                  <div className="text-[9px] opacity-70">Focus on narrative. Enemies are weaker.</div>
+                                </div>
+                            </button>
+                            <button onClick={() => setDifficulty('standard')} className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${difficulty === 'standard' ? 'bg-amber-600/20 border-amber-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'}`}>
+                                <Shield size={16} className={difficulty === 'standard' ? 'text-amber-500' : 'text-slate-600'} />
+                                <div className="text-left">
+                                  <div className="font-bold text-xs uppercase">Standard</div>
+                                  <div className="text-[9px] opacity-70">Balanced combat rules.</div>
+                                </div>
+                            </button>
+                            <button onClick={() => setDifficulty('deadly')} className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${difficulty === 'deadly' ? 'bg-rose-600/20 border-rose-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600'}`}>
+                                <Skull size={16} className={difficulty === 'deadly' ? 'text-rose-500' : 'text-slate-600'} />
+                                <div className="text-left">
+                                  <div className="font-bold text-xs uppercase">Deadly</div>
+                                  <div className="text-[9px] opacity-70">Ruthless tactics & tougher foes.</div>
+                                </div>
+                            </button>
+                          </div>
                       </div>
                    </div>
 
+                   <div>
+                     <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-3 flex items-center gap-2 mt-4"><Briefcase size={12}/> Equipment</h4>
+                     <div className="flex flex-wrap gap-2">{forgeData.inventory?.map((it, i) => <span key={i} className="px-3 py-1 bg-slate-950 border border-slate-800 rounded text-xs text-slate-300">• {it}</span>)}</div>
+                   </div>
+                   
                    <button onClick={() => { const char = { ...forgeData, id: crypto.randomUUID(), ownerId: myPlayerId.current } as Character; setGameState(prev => ({ ...prev, party: [char], phase: 'LOBBY' })); }} className="w-full py-6 bg-amber-600 rounded-2xl text-white font-bold uppercase text-lg shadow-xl hover:bg-amber-500 transition-all">Embark on Quest</button>
                 </div>
               </div>
@@ -862,7 +865,22 @@ const App: React.FC = () => {
           <h1 className="fantasy-font text-3xl font-bold tracking-widest text-slate-100 uppercase">Mythos DM</h1>
         </div>
         <div className="flex gap-4 items-center">
-          {hasApiKey && gameState.phase === 'ADVENTURE' && (
+          {user && (
+             <button 
+               onClick={() => setIsShopOpen(true)}
+               className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-500 px-4 py-2 rounded-xl transition-all group"
+             >
+               <div className="text-right">
+                  <p className="text-[9px] uppercase font-bold text-slate-500 tracking-widest">Aether Balance</p>
+                  <p className="text-sm font-bold text-white group-hover:text-amber-500 transition-colors font-mono">{user.aetherBalance.toLocaleString()}</p>
+               </div>
+               <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 group-hover:bg-amber-500 group-hover:text-slate-900 transition-all">
+                  <Gem size={16} />
+               </div>
+             </button>
+          )}
+
+          {user && gameState.phase === 'ADVENTURE' && (
             <div className="flex gap-2 relative">
               {saveStatus && (
                 <div className="absolute -bottom-10 right-0 text-emerald-400 text-[10px] font-bold uppercase tracking-[0.2em] bg-emerald-950/80 px-4 py-1.5 rounded-full border border-emerald-500/30 animate-in fade-in slide-in-from-top-2">
@@ -876,11 +894,13 @@ const App: React.FC = () => {
                 <Layout size={14}/> Stats
               </button>
               <button onClick={handleSaveSaga} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold uppercase transition-all shadow-lg"><Save size={14}/> Inscribe</button>
-              <button onClick={handleExportSaga} className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-[10px] font-bold uppercase transition-all shadow-lg"><Download size={14}/> Export</button>
             </div>
           )}
         </div>
       </header>
+
+      {/* Shop Modal */}
+      {isShopOpen && user && <ShopModal onClose={() => setIsShopOpen(false)} balance={user.aetherBalance} />}
 
       <main className="flex-1 flex overflow-hidden relative pt-[88px]">
         {gameState.phase !== 'ADVENTURE' ? (

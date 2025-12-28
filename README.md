@@ -25,11 +25,11 @@ Mythos DM is an immersive, AI-powered Dungeon Master designed for Dungeons & Dra
 ### 1. Project IDX (Recommended)
 This project is optimized for [Google Project IDX](https://idx.dev/).
 1.  Open the repo in Project IDX.
-2.  The environment will automatically install dependencies (`npm install`).
+2.  The environment will automatically install dependencies via the configured Nix environment.
 3.  The preview server will start automatically.
 
 ### 2. Manual Setup
-*   [Node.js](https://nodejs.org/) (v18 or higher recommended)
+*   [Node.js](https://nodejs.org/) (v20 or higher recommended)
 
 ```bash
 git clone https://github.com/yourusername/mythos-dm.git

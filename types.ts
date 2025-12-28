@@ -1,3 +1,4 @@
+
 export interface Stats {
   str: number;
   dex: number;
@@ -34,11 +35,19 @@ export interface Message {
   hasSheetUpdate?: boolean;
 }
 
+export interface UserProfile {
+  uid: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
+  aetherBalance: number; // The currency for API tokens
+}
+
 export type SessionMode = 'solo' | 'online';
 
 export type GeminiModelId = 'gemini-3-pro-preview' | 'gemini-3-flash-preview' | 'gemini-flash-lite-latest';
 
-export type AppPhase = 'MODE_SELECT' | 'MODEL_SELECT' | 'CHAR_SELECT' | 'CHAR_FORGE' | 'CHAR_REVIEW' | 'LOBBY' | 'ADVENTURE';
+export type AppPhase = 'LOGIN' | 'MODE_SELECT' | 'MODEL_SELECT' | 'CHAR_SELECT' | 'CHAR_FORGE' | 'CHAR_REVIEW' | 'LOBBY' | 'ADVENTURE';
 
 export interface PlayerStatus {
   id: string;
