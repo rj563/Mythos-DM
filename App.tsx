@@ -442,7 +442,13 @@ const App: React.FC = () => {
                       <p className="text-slate-400">Select a pre-made legend or forge your own destiny.</p>
                     </div>
                     <button 
-                      onClick={() => setGameState(prev => ({ ...prev, phase: 'CHAR_FORGE' }))}
+                      onClick={() => {
+                        // Clear forge data when starting fresh
+                        setForgeData({});
+                        setClassConcept('');
+                        setForgeStep(0);
+                        setGameState(prev => ({ ...prev, phase: 'CHAR_FORGE' }));
+                      }}
                       className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold uppercase text-xs tracking-widest flex items-center gap-2 transition-colors shadow-lg shadow-amber-900/20"
                     >
                       <Plus size={16}/> Forge Custom Hero
@@ -566,15 +572,23 @@ const App: React.FC = () => {
                           <button onClick={() => setAdventureTone('mystery')} className={`flex-1 p-3 rounded-xl border text-xs font-bold uppercase ${adventureTone === 'mystery' ? 'bg-sky-500/20 border-sky-500 text-sky-500' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>Mystery</button>
                        </div>
                      </div>
-                     <button 
-                       onClick={() => {
-                          const char = { ...forgeData, id: crypto.randomUUID(), ownerId: myPlayerId.current } as Character;
-                          setGameState(prev => ({...prev, party: [char], phase: 'LOBBY'}));
-                       }}
-                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold uppercase tracking-widest shadow-lg shadow-emerald-900/20"
-                     >
-                       Confirm Character
-                     </button>
+                     <div className="flex gap-4 w-full">
+                       <button 
+                          onClick={() => setGameState(prev => ({...prev, phase: 'CHAR_FORGE'}))}
+                          className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold uppercase tracking-widest"
+                       >
+                          Edit
+                       </button>
+                       <button 
+                         onClick={() => {
+                            const char = { ...forgeData, id: crypto.randomUUID(), ownerId: myPlayerId.current } as Character;
+                            setGameState(prev => ({...prev, party: [char], phase: 'LOBBY'}));
+                         }}
+                         className="flex-[2] py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold uppercase tracking-widest shadow-lg shadow-emerald-900/20"
+                       >
+                         Confirm Character
+                       </button>
+                     </div>
                   </div>
                </div>
             </div>
@@ -583,6 +597,13 @@ const App: React.FC = () => {
           {/* Phase: LOBBY */}
           {gameState.phase === 'LOBBY' && (
              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-8">
+                {/* BACK BUTTON */}
+                <div className="absolute top-8 left-8">
+                  <button onClick={() => setGameState(prev => ({...prev, phase: 'CHAR_SELECT', party: []}))} className="flex items-center gap-2 text-slate-500 hover:text-white uppercase font-bold text-xs tracking-widest">
+                    <ArrowLeft size={14}/> Change Character
+                  </button>
+                </div>
+
                 <BookMarked size={80} className="text-slate-700 mb-4" />
                 <h2 className="font-fantasy text-5xl text-white">The Gathering</h2>
                 {gameState.sessionId && (
