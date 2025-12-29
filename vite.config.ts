@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -8,7 +9,10 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   return {
-    plugins: [react()],
+    plugins: [
+        react(),
+        tailwindcss()
+    ],
     define: {
       // This allows the app to access process.env.API_KEY in the browser
       // by replacing it with the string value during the build.
