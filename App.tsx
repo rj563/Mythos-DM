@@ -10,7 +10,7 @@ import {
   Sword, Shield, Scroll, Crown, Users, ArrowLeft, Save, 
   Layout, LogOut, Settings, Gem, Zap, Sparkles, Brain, 
   ChevronRight, History, Trash2, Plus, Skull, Feather, 
-  Search, BookMarked, User, Upload, Menu, X, Check, Loader2, Play, Globe, Map, Clock, Type, Home
+  Search, BookMarked, User, Upload, Menu, X, Check, Loader2, Play, Globe, Map, Clock, Type, Home, FileText
 } from 'lucide-react';
 import Gun from 'gun';
 
@@ -50,14 +50,16 @@ const App: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [showStats, setShowStats] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState('');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Settings State
+  const [dmPersona, setDmPersona] = useState('');
+  const [adventureTone, setAdventureTone] = useState<'action' | 'mystery'>('action');
+  const [difficulty, setDifficulty] = useState<'story' | 'standard' | 'deadly'>('standard');
 
   // Forge State
   const [forgeStep, setForgeStep] = useState(0);
   const [forgeData, setForgeData] = useState<Partial<Character>>({});
   const [classConcept, setClassConcept] = useState('');
-  const [adventureTone, setAdventureTone] = useState<'action' | 'mystery'>('action');
-  const [difficulty, setDifficulty] = useState<'story' | 'standard' | 'deadly'>('standard');
 
   // --- Effects ---
   useEffect(() => {
@@ -83,7 +85,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
       const sessionId = gameState.sessionMode === 'online' ? (gameState.sessionId || generateRoomCode()) : undefined;
-      const { text, tokens } = await dmService.startAdventure(gameState.party, gameState.history, gameState.modelId, adventureTone, difficulty);
+      const { text, tokens } = await dmService.startAdventure(gameState.party, gameState.history, gameState.modelId, adventureTone, difficulty, dmPersona);
       if (tokens) deductTokens(tokens);
       
       setGameState(prev => ({
@@ -92,7 +94,8 @@ const App: React.FC = () => {
         isStarted: true,
         phase: 'ADVENTURE',
         activeCharacterId: prev.party[0]?.id || '',
-        sessionId
+        sessionId,
+        dmPersona // Persist persona
       }));
     } catch (e) { setError("The DM is silent (Check API Key)."); } 
     finally { setIsLoading(false); }
@@ -612,6 +615,60 @@ const App: React.FC = () => {
                       <span className="text-2xl font-mono text-emerald-500">{gameState.sessionId}</span>
                    </div>
                 )}
+                
+                {/* CAMPAIGN SETTINGS FOR HOST */}
+                {gameState.isHost && (
+                  <div className="w-full max-w-2xl bg-slate-900/50 border border-slate-800 rounded-2xl p-6 text-left animate-in slide-in-from-bottom-2">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                       <Settings size={14}/> Campaign Settings
+                    </h3>
+                    <div className="space-y-4">
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                             <label className="text-[10px] font-bold text-slate-500 uppercase">Difficulty</label>
+                             <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-800">
+                               {['story', 'standard', 'deadly'].map((d) => (
+                                 <button 
+                                   key={d}
+                                   onClick={() => setDifficulty(d as any)} 
+                                   className={`flex-1 py-2 text-[10px] font-bold uppercase rounded transition-all ${difficulty === d ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                                 >
+                                   {d}
+                                 </button>
+                               ))}
+                             </div>
+                          </div>
+                          <div className="space-y-2">
+                             <label className="text-[10px] font-bold text-slate-500 uppercase">Tone</label>
+                             <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-800">
+                               {['action', 'mystery'].map((t) => (
+                                 <button 
+                                   key={t}
+                                   onClick={() => setAdventureTone(t as any)} 
+                                   className={`flex-1 py-2 text-[10px] font-bold uppercase rounded transition-all ${adventureTone === t ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                                 >
+                                   {t}
+                                 </button>
+                               ))}
+                             </div>
+                          </div>
+                       </div>
+                       
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
+                             <FileText size={12}/> Dungeon Master Persona
+                          </label>
+                          <textarea
+                             value={dmPersona}
+                             onChange={(e) => setDmPersona(e.target.value)}
+                             placeholder="E.g. You are the Keeper of the Forgotten Flame, a weary deity who speaks in riddles..."
+                             className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-700 h-20 resize-none outline-none focus:border-amber-500/50"
+                          />
+                       </div>
+                    </div>
+                  </div>
+                )}
+
                 {gameState.isHost ? (
                   <button 
                     onClick={handleStartAdventure}

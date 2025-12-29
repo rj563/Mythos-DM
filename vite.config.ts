@@ -5,23 +5,21 @@ import tailwindcss from '@tailwindcss/vite';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   return {
     plugins: [
-        react(),
-        tailwindcss()
+      react(),
+      tailwindcss()
     ],
     define: {
       // This allows the app to access process.env.API_KEY in the browser
-      // by replacing it with the string value during the build.
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
       // Polyfill for Gun.js which expects 'global' to exist
       'global': 'window',
     },
     build: {
-      chunkSizeWarningLimit: 1000, // Increased limit to 1000kB to reduce noise for large libs
+      chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
           manualChunks: {

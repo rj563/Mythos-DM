@@ -79,6 +79,7 @@ export interface GameState {
   isHost: boolean;
   lastSavedAt?: number;
   showLevelUp?: boolean;
+  dmPersona?: string;
 }
 
 export interface DiceRoll {

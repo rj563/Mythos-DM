@@ -1,13 +1,12 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* Base styles */
 @theme {
-  --font-sans: 'Inter', sans-serif;
-}
-
-.fantasy-font {
-  font-family: 'MedievalSharp', cursive;
+  --font-sans: "Inter", sans-serif;
+  --font-fantasy: "MedievalSharp", cursive;
+  
+  --color-slate-850: #1e293b;
+  --color-slate-950: #020617;
 }
 
 /* Custom Scrollbar */

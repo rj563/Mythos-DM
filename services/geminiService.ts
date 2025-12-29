@@ -166,7 +166,8 @@ export class GeminiDMService {
     history: Message[], 
     modelId: GeminiModelId, 
     tone: 'action' | 'mystery',
-    difficulty: 'story' | 'standard' | 'deadly'
+    difficulty: 'story' | 'standard' | 'deadly',
+    dmPersona?: string
   ): Promise<{ text: string, tokens?: number }> {
     const ai = this.getClient();
 
@@ -206,7 +207,14 @@ Features/Spells/Backstory: ${char.notes}`;
       - Play enemies intelligently but fairly.`;
     }
 
-    const finalSystemInstruction = `${DM_SYSTEM_INSTRUCTION}
+    // Prepend custom persona if it exists, otherwise rely on the default
+    const personaInstruction = dmPersona 
+      ? `IMPORTANT: You are now adopting the following specific persona: "${dmPersona}". Adopt this voice, style, and behavior completely.` 
+      : "";
+
+    const finalSystemInstruction = `${personaInstruction}
+
+${DM_SYSTEM_INSTRUCTION}
 
 CURRENT PARTY INFORMATION (Average Level: ${avgLevel}):
 ${partyContext}
